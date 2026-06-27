@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+
+vars:
+  BUILD_DIR: "{{.TASKFILE_DIR}}/build"
+
+tasks:
+  cli:
+    desc: Run codefolio CLI
+    cmds:
+      - go run ./cmd/cli
+    silent: true
+    interactive: true
+
+  app:
+    desc: Run Codefolio App
+    cmds:
+      - cd cmd/app && wails dev
+    silent: true
+    interactive: true
+
+  build:
+    desc: Build CLI and App for release
+    cmds:
+      - rm -rf {{.BUILD_DIR}}
+      - mkdir -p {{.BUILD_DIR}}
+      - echo "*" > {{.BUILD_DIR}}/.gitignore
+      - task: build-app
+      - task: build-cli
+    silent: true
+
+  build-cli:
+    internal: true
+    vars:
+      EXT:
+        sh: if [ "{{OS}}" = "windows" ]; then echo -n ".exe"; fi
+    cmds:
+      - go build -o {{.BUILD_DIR}}/codefolio{{.EXT}} ./cmd/cli
+    silent: true
+
+  build-app:
+    internal: true
+    dir: "{{.TASKFILE_DIR}}/cmd/app"
+    cmds:
+      - wails build > /dev/null
+      - mv build/bin/* {{.BUILD_DIR}}/
+      - rm -rf build/bin
+    silent: true
