@@ -39,7 +39,7 @@ func main() {
 		option.WithBaseURL(os.Getenv("BASE_URL")),
 		option.WithAPIKey(os.Getenv("API_KEY")),
 	)
-	driver := chat.NewCompletionsDriver(&client, chat.WithModel("deepseek-v4-flash"))
+	driver := chat.NewCompletionsDriver(&client)
 
 	messages := []llm.Message{
 		message{llm.RoleSystem, "you're a helpful assistant"},
@@ -58,7 +58,7 @@ func main() {
 		fmt.Println()
 		messages = append(messages, message{llm.RoleUser, line})
 
-		deltaChan, errChan := driver.Stream(ctx, messages)
+		deltaChan, errChan := driver.Stream(ctx, messages, llm.WithModel("deepseek-v4-flash"))
 		var resp strings.Builder
 	outer:
 		for {
