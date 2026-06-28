@@ -13,29 +13,19 @@ var (
 )
 
 type CompletionsDriver struct {
-	client       *openai.Client
-	chanCapacity int
+	client *openai.Client
 }
 
-type option func(*CompletionsDriver)
-
-func NewCompletionsDriver(client *openai.Client, options ...option) *CompletionsDriver {
-	c := &CompletionsDriver{
-		client:       client,
-		chanCapacity: 64,
+func NewCompletionsDriver(client *openai.Client) *CompletionsDriver {
+	return &CompletionsDriver{
+		client: client,
 	}
-	for _, opt := range options {
-		opt(c)
-	}
-	return c
-}
-
-func WithChanCapacity(capacity int) option {
-	return func(c *CompletionsDriver) { c.chanCapacity = capacity }
 }
 
 func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, options ...llm.StreamOption) (<-chan llm.Delta, <-chan error) {
-	deltaChan := make(chan llm.Delta, c.chanCapacity)
+	conf := llm.CollectStreamOptions(options...)
+
+	deltaChan := make(chan llm.Delta, conf.ChanCapacity)
 	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
@@ -72,7 +62,6 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 			}
 		}
 
-		conf := llm.CollectStreamOptions(options...)
 		stream := c.client.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
 			Model:    conf.Model,
 			Messages: msgs,

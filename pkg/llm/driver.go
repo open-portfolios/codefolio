@@ -6,20 +6,27 @@ type Driver interface {
 	Stream(ctx context.Context, messages []Message, options ...StreamOption) (<-chan Delta, <-chan error)
 }
 
-type StreamOption func(*streamConf)
-
-func WithModel(name string) StreamOption {
-	return func(s *streamConf) { s.Model = name }
+type StreamConf struct {
+	Model        string
+	ChanCapacity int
 }
 
-type streamConf struct {
-	Model string
-}
-
-func CollectStreamOptions(options ...StreamOption) *streamConf {
-	s := &streamConf{}
+func CollectStreamOptions(options ...StreamOption) *StreamConf {
+	s := &StreamConf{
+		ChanCapacity: 64,
+	}
 	for _, opt := range options {
 		opt(s)
 	}
 	return s
+}
+
+type StreamOption func(*StreamConf)
+
+func WithModel(name string) StreamOption {
+	return func(s *StreamConf) { s.Model = name }
+}
+
+func WithChanCapacity(capacity int) StreamOption {
+	return func(s *StreamConf) { s.ChanCapacity = capacity }
 }
