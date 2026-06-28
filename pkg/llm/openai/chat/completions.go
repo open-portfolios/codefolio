@@ -13,17 +13,17 @@ var (
 )
 
 type CompletionsDriver struct {
-	client     openai.Client
-	bufferSize int
-	model      string
+	client       *openai.Client
+	chanCapacity int
+	model        string
 }
 
 type option func(*CompletionsDriver)
 
-func NewCompletionsDriver(client openai.Client, options ...option) *CompletionsDriver {
+func NewCompletionsDriver(client *openai.Client, options ...option) *CompletionsDriver {
 	c := &CompletionsDriver{
-		client:     client,
-		bufferSize: 64,
+		client:       client,
+		chanCapacity: 64,
 	}
 	for _, opt := range options {
 		opt(c)
@@ -35,11 +35,15 @@ func WithModel(name string) option {
 	return func(c *CompletionsDriver) { c.model = name }
 }
 
+func WithChanCapacity(capacity int) option {
+	return func(c *CompletionsDriver) { c.chanCapacity = capacity }
+}
+
 func (c CompletionsDriver) Model() string         { return c.model }
 func (c *CompletionsDriver) SetModel(name string) { c.model = name }
 
 func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message) (<-chan llm.Delta, <-chan error) {
-	deltaChan := make(chan llm.Delta, c.bufferSize)
+	deltaChan := make(chan llm.Delta, c.chanCapacity)
 	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)

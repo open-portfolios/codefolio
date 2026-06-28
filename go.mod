@@ -3,6 +3,7 @@ module github.com/open-portfolios/codefolio
 go 1.26.2
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/openai/openai-go/v3 v3.41.0
 	github.com/wailsapp/wails/v2 v2.12.0
 )

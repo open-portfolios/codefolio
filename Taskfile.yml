@@ -10,9 +10,8 @@ vars:
 tasks:
   cli:
     desc: Run codefolio CLI
-    dir: "{{.CLI_PROJECT_ROOT}}"
     cmds:
-      - go run .
+      - go run {{.CLI_PROJECT_ROOT}}
     silent: true
     interactive: true
 
@@ -43,12 +42,11 @@ tasks:
 
   build-cli:
     internal: true
-    dir: "{{.CLI_PROJECT_ROOT}}"
     vars:
       EXT:
         sh: if [ "{{OS}}" = "windows" ]; then echo -n ".exe"; fi
     cmds:
-      - go build -o {{.BUILD_DIR}}/codefolio{{.EXT}} .
+      - go build -o {{.BUILD_DIR}}/codefolio{{.EXT}} {{.CLI_PROJECT_ROOT}}
     silent: true
 
   build-app:
