@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/open-portfolios/codefolio/pkg/llm"
+	"github.com/open-portfolios/codefolio/pkg/stdx"
 	"github.com/openai/openai-go/v3"
 )
 
@@ -70,15 +71,23 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 
 		for stream.Next() {
 			event := stream.Current()
-			delta := newCompletionsDelta(
-				event.Choices[0].Delta.Role,
-				event.Choices[0].Delta.Content,
-				event.Usage.TotalTokens,
-			)
-			select {
-			case deltaChan <- delta:
-			case <-ctx.Done():
-				errChan <- ctx.Err()
+
+			// send message delta
+			m := llm.MessageDelta{
+				Role:    event.Choices[0].Delta.Role,
+				Content: event.Choices[0].Delta.Content,
+			}
+			if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, m); err != nil {
+				errChan <- err
+				return
+			}
+
+			// send usage delta
+			u := llm.UsageDelta{
+				TotalTokens: uint64(event.Usage.TotalTokens),
+			}
+			if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, u); err != nil {
+				errChan <- err
 				return
 			}
 		}

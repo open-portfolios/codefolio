@@ -1,7 +1,34 @@
 package llm
 
+import "github.com/open-portfolios/codefolio/pkg/stdx"
+
+var (
+	_ Delta = stdx.Zero[MessageDelta]()
+	_ Delta = stdx.Zero[UsageDelta]()
+)
+
 type Delta interface {
-	Role() string
-	Content() string
-	Usage() int64
+	Accept(DeltaVisitor) error
 }
+
+type DeltaVisitor interface {
+	VisitMessage(MessageDelta) error
+	VisitUsage(UsageDelta) error
+}
+
+type MessageDelta struct {
+	Role    string
+	Content string
+}
+
+type UsageDelta struct {
+	TotalTokens uint64
+}
+
+func (m MessageDelta) Accept(d DeltaVisitor) error { return d.VisitMessage(m) }
+func (u UsageDelta) Accept(d DeltaVisitor) error   { return d.VisitUsage(u) }
+
+type BaseDeltaVisitor struct{}
+
+func (BaseDeltaVisitor) VisitMessage(MessageDelta) error { return nil }
+func (BaseDeltaVisitor) VisitUsage(UsageDelta) error     { return nil }

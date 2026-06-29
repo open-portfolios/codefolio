@@ -33,6 +33,32 @@ func init() {
 	}
 }
 
+type ConsoleVisitor struct {
+	llm.BaseDeltaVisitor
+
+	tokens  uint64
+	builder strings.Builder
+}
+
+func (c *ConsoleVisitor) VisitMessage(m llm.MessageDelta) error {
+	c.builder.WriteString(m.Content)
+	fmt.Print(m.Content)
+	return nil
+}
+
+func (c *ConsoleVisitor) VisitUsage(u llm.UsageDelta) error {
+	c.tokens += u.TotalTokens
+	return nil
+}
+
+func (c *ConsoleVisitor) Summarize() (message string) {
+	fmt.Printf("\n\nused %d tokens\n", c.tokens)
+	message = c.builder.String()
+	c.tokens = 0
+	c.builder.Reset()
+	return
+}
+
 func main() {
 	ctx := context.Background()
 	client := openai.NewClient(
@@ -46,6 +72,7 @@ func main() {
 	}
 
 	reader := bufio.NewReader(os.Stdin)
+	visitor := new(ConsoleVisitor)
 	for {
 		fmt.Print("> ")
 		line, err := reader.ReadString('\n')
@@ -55,11 +82,10 @@ func main() {
 		if len(strings.TrimSpace(line)) == 0 {
 			break
 		}
-		fmt.Println()
 		messages = append(messages, message{llm.RoleUser, line})
 
+		fmt.Println()
 		deltaChan, errChan := driver.Stream(ctx, messages, llm.WithModel("deepseek-v4-flash"))
-		var resp strings.Builder
 	outer:
 		for {
 			select {
@@ -67,8 +93,7 @@ func main() {
 				if !ok {
 					break outer
 				}
-				fmt.Print(delta.Content())
-				if _, err := resp.WriteString(delta.Content()); err != nil {
+				if err := delta.Accept(visitor); err != nil {
 					panic(err)
 				}
 			case err, ok := <-errChan:
@@ -77,8 +102,7 @@ func main() {
 				}
 			}
 		}
-		messages = append(messages, message{llm.RoleAssistant, resp.String()})
-		fmt.Println()
+		messages = append(messages, message{llm.RoleAssistant, visitor.Summarize()})
 		fmt.Println()
 	}
 }

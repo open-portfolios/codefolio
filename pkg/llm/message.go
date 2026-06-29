@@ -23,10 +23,12 @@ type Message interface {
 
 type ToolCallMessage interface {
 	Message
+
 	ToolCallID() string
 }
 
 type FunctionMessage interface {
 	Message
+
 	Name() string
 }
