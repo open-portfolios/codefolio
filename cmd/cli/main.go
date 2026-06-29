@@ -7,12 +7,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/anthropics/anthropic-sdk-go/option"
 	dotenv "github.com/joho/godotenv"
 	"github.com/open-portfolios/codefolio/pkg/llm"
-	"github.com/open-portfolios/codefolio/pkg/llm/openai/chat"
+	"github.com/open-portfolios/codefolio/pkg/llm/anthropic/messages"
 	"github.com/open-portfolios/codefolio/pkg/stdx"
-	"github.com/openai/openai-go/v3"
-	"github.com/openai/openai-go/v3/option"
 )
 
 var (
@@ -61,11 +61,16 @@ func (c *ConsoleVisitor) Summarize() (message string) {
 
 func main() {
 	ctx := context.Background()
-	client := openai.NewClient(
+	// client := openai.NewClient(
+	// 	option.WithBaseURL(os.Getenv("BASE_URL")),
+	// 	option.WithAPIKey(os.Getenv("API_KEY")),
+	// )
+	// driver := chat.NewCompletionsDriver(&client)
+	client := anthropic.NewClient(
 		option.WithBaseURL(os.Getenv("BASE_URL")),
 		option.WithAPIKey(os.Getenv("API_KEY")),
 	)
-	driver := chat.NewCompletionsDriver(&client)
+	driver := messages.NewDriver(&client)
 
 	messages := []llm.Message{
 		message{llm.RoleSystem, "you're a helpful assistant"},
