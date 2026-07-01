@@ -36,6 +36,9 @@ tasks:
       - task: clean
       - mkdir -p {{.BUILD_DIR}}
       - echo "*" > {{.BUILD_DIR}}/.gitignore
+      - cp -r .codefolio {{.BUILD_DIR}}/
+      - cmd: cp .env {{.BUILD_DIR}}/
+        if: test -f .env
       - task: build-app
       - task: build-cli
     silent: true
