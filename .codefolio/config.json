@@ -1,0 +1,6 @@
+{
+    "protocol": "openai",
+    "baseUrl": "https://api.deepseek.com",
+    "model": "deepseek-v4-flash",
+    "apiKey": "${DEEPSEEK_API_KEY}"
+}
