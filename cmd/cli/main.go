@@ -11,7 +11,7 @@ func main() {
 		panic(err)
 	}
 
-	app, err := tui.NewApp(tui.WithRootComponent(components.App()))
+	app, err := tui.NewApp(tui.WithRootComponent(components.App()), tui.WithMouse())
 	if err != nil {
 		panic(err)
 	}

@@ -7,39 +7,117 @@ import (
 	tui "github.com/grindlemire/go-tui"
 )
 
-type app struct{}
+type app struct {
+	body     *tui.Ref
+	composer *tui.Ref
+	textarea *tui.Ref
 
-func App() *app { return new(app) }
+	input *tui.State[string]
+}
+
+func App() *app {
+	return &app{
+		body:     tui.NewRef(),
+		composer: tui.NewRef(),
+		textarea: tui.NewRef(),
+		input:    tui.NewState(""),
+	}
+}
 
 func (a *app) KeyMap() tui.KeyMap {
 	return tui.KeyMap{
-		tui.On(tui.KeyEscape, func(ke tui.KeyEvent) { ke.App().Stop() }),
+		tui.On(tui.KeyCtrlC, a.onCtrlC),
 	}
 }
+
+func (a *app) HandleMouse(m tui.MouseEvent) bool {
+	return tui.HandleClicks(m,
+		tui.Click(a.composer, func() { a.onComposerClick(m) }),
+		tui.Click(a.body, func() { a.onBodyClick(m) }),
+	)
+}
+
+func (a *app) shouldShowSidebar(t *tui.App) bool {
+	w, _ := t.Size()
+	return w >= 120
+}
+
+func (a *app) onCtrlC(ke tui.KeyEvent) {
+	textarea := tui.RefComponent[*tui.TextArea](a.textarea)
+	if textarea.IsFocused() && a.input.Get() != "" {
+		a.input.Set("")
+		return
+	}
+	ke.App().Stop()
+}
+
+func (a *app) onComposerClick(m tui.MouseEvent) {
+	textarea := tui.RefComponent[*tui.TextArea](a.textarea)
+	if !textarea.IsFocused() {
+		m.App().FocusNext()
+	}
+}
+
+func (a *app) onBodyClick(m tui.MouseEvent) { m.App().BlurFocused() }
 
 func (a *app) Render(app *tui.App) *tui.Element {
 	__tui_0 := tui.New(
 		tui.WithWidthPercent(100.00),
 		tui.WithHeightPercent(100.00),
-		tui.WithJustify(tui.JustifyCenter),
-		tui.WithAlign(tui.AlignCenter),
-		tui.WithDisplay(tui.DisplayFlex), tui.WithDirection(tui.Column),
-		tui.WithGap(1),
+		tui.WithBackground(tui.NewStyle().Background(tui.Black)),
+		tui.WithDisplay(tui.DisplayFlex), tui.WithDirection(tui.Row),
 	)
-	__tui_1 := tui.New(
-		tui.WithText("Hello, TUI!"),
-	)
+	a.body.Set(__tui_0)
+	__tui_1_children := []*tui.Element{}
+	__tui_2 := app.Mount(a, 1, func() tui.Component {
+		return Messages()
+	})
+	__tui_1_children = append(__tui_1_children, __tui_2)
+	__tui_3_children := []*tui.Element{}
+	__tui_4 := app.MountPersistent(a, 3, func() tui.Component {
+		return tui.NewTextArea(
+			tui.WithTextAreaValue(a.input),
+			tui.WithTextAreaPlaceholder("Ask anything..."),
+			tui.WithTextAreaAutoFocus(true),
+		)
+	})
+	a.textarea.Set(__tui_4)
+	__tui_3_children = append(__tui_3_children, __tui_4)
+	__tui_3 := app.Mount(a, 2, func() tui.Component {
+		return Composer(a.composer, __tui_3_children)
+	})
+	__tui_1_children = append(__tui_1_children, __tui_3)
+	__tui_1 := app.Mount(a, 0, func() tui.Component {
+		return MainPanel(__tui_1_children)
+	})
 	__tui_0.AddChild(__tui_1)
-	__tui_2 := tui.New(
-		tui.WithText("Press Esc to quit"),
-		tui.WithTextStyle(tui.NewStyle().Dim()),
-	)
-	__tui_0.AddChild(__tui_2)
+	if a.shouldShowSidebar(app) {
+		__tui_5 := app.Mount(a, 4, func() tui.Component {
+			return Sidebar()
+		})
+		__tui_0.AddChild(__tui_5)
+	}
 
 	return __tui_0
 }
 
+// bindAppFields is generated. It wires the component's *tui.App,
+// State, Events, and TextArea fields to app. When you override BindApp,
+// call this helper instead of hand-maintaining the delegation list.
+func (a *app) bindAppFields(app *tui.App) {
+	if a.input != nil {
+		a.input.BindApp(app)
+	}
+}
+
+func (a *app) BindApp(app *tui.App) {
+	a.bindAppFields(app)
+}
+
+var _ tui.AppBinder = (*app)(nil)
+
 // Compile-time interface satisfaction checks.
 var (
-	_ tui.KeyListener = (*app)(nil)
+	_ tui.KeyListener   = (*app)(nil)
+	_ tui.MouseListener = (*app)(nil)
 )
