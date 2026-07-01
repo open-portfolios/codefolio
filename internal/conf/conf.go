@@ -13,34 +13,34 @@ import (
 )
 
 var (
-	relativePath = filepath.Join(".codefolio", "config.json")
+	confHierarchy = filepath.Join(".codefolio", "config.json")
 
-	loadPaths []string
+	confPaths   []string
+	dotenvPaths []string
 )
 
 func init() {
-	// Load dotenv
-	if err := dotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
-		panic(err)
-	}
-
 	// Conf besides executable
 	//
-	// Loaded first, covered by later configurations if any.
+	// Loaded first, overridden by later configurations if any.
 	exe, err := os.Executable()
 	if err != nil {
 		panic(err)
 	}
-	loadPaths = append(loadPaths, filepath.Join(filepath.Dir(exe), relativePath))
+	confPaths = append(confPaths, filepath.Join(filepath.Dir(exe), confHierarchy))
 
 	// Conf besides cwd
 	//
-	// Loaded and cover the existing configurations if any.
+	// Loaded and override the existing configurations if any.
 	cwd, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
-	loadPaths = append(loadPaths, filepath.Join(cwd, relativePath))
+	confPaths = append(confPaths, filepath.Join(cwd, confHierarchy))
+
+	// Dotenv paths are reversed because the first loaded dotenv will NOT be overriden.
+	dotenvPaths = append(dotenvPaths, filepath.Join(cwd, ".env"))
+	dotenvPaths = append(dotenvPaths, filepath.Join(filepath.Dir(exe), ".env"))
 }
 
 type Global struct {
@@ -51,8 +51,15 @@ type Global struct {
 }
 
 func Load() (*Global, error) {
+	for _, p := range dotenvPaths {
+		// Load dotenv
+		if err := dotenv.Load(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+			panic(err)
+		}
+	}
+
 	var conf Global
-	for _, p := range loadPaths {
+	for _, p := range confPaths {
 		if content, ok := tryRead(p); ok {
 			if err := json.Unmarshal(content, &conf); err != nil {
 				return nil, err
