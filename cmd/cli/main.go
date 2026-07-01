@@ -1,9 +1,12 @@
 package main
 
-import "github.com/grindlemire/go-tui"
+import (
+	"github.com/grindlemire/go-tui"
+	"github.com/open-portfolios/codefolio/cmd/cli/components"
+)
 
 func main() {
-	app, err := tui.NewApp(tui.WithRootComponent(Hello()))
+	app, err := tui.NewApp(tui.WithRootComponent(components.App()))
 	if err != nil {
 		panic(err)
 	}
