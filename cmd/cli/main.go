@@ -10,6 +10,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	dotenv "github.com/joho/godotenv"
+	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/pkg/llm"
 	"github.com/open-portfolios/codefolio/pkg/llm/anthropic/messages"
 	"github.com/open-portfolios/codefolio/pkg/stdx"
@@ -60,6 +61,13 @@ func (c *ConsoleVisitor) Summarize() (message string) {
 }
 
 func main() {
+	var c *conf.Global
+	var err error
+
+	if c, err = conf.Load(); err != nil {
+		panic(err)
+	}
+
 	ctx := context.Background()
 	// client := openai.NewClient(
 	// 	option.WithBaseURL(os.Getenv("BASE_URL")),
@@ -67,8 +75,8 @@ func main() {
 	// )
 	// driver := chat.NewCompletionsDriver(&client)
 	client := anthropic.NewClient(
-		option.WithBaseURL(os.Getenv("BASE_URL")),
-		option.WithAPIKey(os.Getenv("API_KEY")),
+		option.WithBaseURL(c.BaseURL),
+		option.WithAPIKey(c.APIKey),
 	)
 	driver := messages.NewDriver(&client)
 
