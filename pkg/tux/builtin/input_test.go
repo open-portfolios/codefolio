@@ -5,6 +5,7 @@ import (
 
 	"github.com/open-portfolios/codefolio/pkg/tux"
 	"github.com/open-portfolios/codefolio/pkg/tux/debug"
+	"github.com/open-portfolios/codefolio/pkg/tux/misc"
 )
 
 func TestInputRenderWritesContent(t *testing.T) {
@@ -54,15 +55,15 @@ func TestInputRenderWritesColors(t *testing.T) {
 	component := Input(InputProps{
 		Width:      1,
 		Content:    "x",
-		Foreground: tux.ColorRed,
-		Background: tux.ColorBlue,
+		Foreground: misc.ColorRed,
+		Background: misc.ColorBlue,
 	})
 
 	if err := component.Render(tux.BuildContext{}, renderer); err != nil {
 		t.Fatal(err)
 	}
 
-	if got, want := renderer.Buf[0][0], (tux.Cell{Ch: 'x', Width: 1, Foreground: tux.ColorRed, Background: tux.ColorBlue}); got != want {
+	if got, want := renderer.Buf[0][0], (tux.Cell{Ch: 'x', Width: 1, Foreground: misc.ColorRed, Background: misc.ColorBlue}); got != want {
 		t.Fatalf("got %#v, want %#v", got, want)
 	}
 }

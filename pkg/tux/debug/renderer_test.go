@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/open-portfolios/codefolio/pkg/tux"
+	"github.com/open-portfolios/codefolio/pkg/tux/misc"
 )
 
 func TestNewRendererCreatesBuffer(t *testing.T) {
@@ -21,7 +22,7 @@ func TestNewRendererCreatesBuffer(t *testing.T) {
 
 func TestRendererPaintWritesCell(t *testing.T) {
 	renderer := NewRenderer(2, 3)
-	cell := tux.Cell{Ch: 'x', Width: 1, Foreground: tux.ColorRed, Background: tux.ColorBlue}
+	cell := tux.Cell{Ch: 'x', Width: 1, Foreground: misc.ColorRed, Background: misc.ColorBlue}
 
 	renderer.Paint(1, 2, cell)
 

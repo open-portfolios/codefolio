@@ -6,6 +6,7 @@ import (
 
 	"github.com/open-portfolios/codefolio/pkg/tux"
 	"github.com/open-portfolios/codefolio/pkg/tux/builtin"
+	"github.com/open-portfolios/codefolio/pkg/tux/misc"
 )
 
 func main() {
@@ -111,7 +112,7 @@ func (d *demo) Build(tux.BuildContext) tux.Component {
 			Content:    d.content,
 			Cursor:     d.cursor,
 			Focused:    true,
-			Background: tux.ColorGreen,
+			Background: misc.ColorGreen,
 		}),
 		builtin.Box(builtin.BoxProps{
 			Row:     5,

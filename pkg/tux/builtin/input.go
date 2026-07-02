@@ -24,8 +24,8 @@ type InputProps struct {
 	Content    string
 	Cursor     int
 	Focused    bool
-	Foreground tux.Color
-	Background tux.Color
+	Foreground misc.Color
+	Background misc.Color
 }
 
 func Input(props InputProps, children ...tux.Component) tux.Component {

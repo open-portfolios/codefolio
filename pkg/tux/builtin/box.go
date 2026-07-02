@@ -17,8 +17,8 @@ type box struct {
 	width      int
 	height     int
 	content    string
-	foreground tux.Color
-	background tux.Color
+	foreground misc.Color
+	background misc.Color
 }
 
 type BoxProps struct {
@@ -27,8 +27,8 @@ type BoxProps struct {
 	Width      int
 	Height     int
 	Content    string
-	Foreground tux.Color
-	Background tux.Color
+	Foreground misc.Color
+	Background misc.Color
 }
 
 func Box(props BoxProps, children ...tux.Component) tux.Component {
