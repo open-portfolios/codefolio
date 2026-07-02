@@ -1,6 +1,10 @@
 package debug
 
-import "github.com/open-portfolios/codefolio/pkg/tux"
+import (
+	"strings"
+
+	"github.com/open-portfolios/codefolio/pkg/tux"
+)
 
 var (
 	_ tux.RenderContext = (*Renderer)(nil)
@@ -26,11 +30,19 @@ func (r *Renderer) Render(ctx tux.BuildContext, root tux.Component) error {
 }
 
 func (r *Renderer) String(row, start, end int) string {
-	line := make([]byte, end-start)
+	var line strings.Builder
 	for column := start; column < end; column++ {
-		line[column-start] = r.Buf[row][column].Ch
+		cell := r.Buf[row][column]
+		if cell.Width == 0 {
+			continue
+		}
+		ch := cell.Ch
+		if ch == 0 {
+			ch = ' '
+		}
+		line.WriteRune(ch)
 	}
-	return string(line)
+	return line.String()
 }
 
 func (r *Renderer) CursorPos() (row, column int, queued bool) {

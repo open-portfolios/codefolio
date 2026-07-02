@@ -21,7 +21,7 @@ func TestNewRendererCreatesBuffer(t *testing.T) {
 
 func TestRendererPaintWritesCell(t *testing.T) {
 	renderer := NewRenderer(2, 3)
-	cell := tux.Cell{Ch: 'x', Foreground: tux.ColorRed, Background: tux.ColorBlue}
+	cell := tux.NewCell('x', tux.ColorRed, tux.ColorBlue)
 
 	renderer.Paint(1, 2, cell)
 
@@ -45,17 +45,17 @@ func TestRendererRender(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, want := renderer.Buf[0][0].Ch, byte('x'); got != want {
+	if got, want := renderer.Buf[0][0].Ch, rune('x'); got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }
 
 func TestRendererString(t *testing.T) {
 	renderer := NewRenderer(1, 4)
-	renderer.Paint(0, 0, tux.Cell{Ch: 'a'})
-	renderer.Paint(0, 1, tux.Cell{Ch: 'b'})
-	renderer.Paint(0, 2, tux.Cell{Ch: 'c'})
-	renderer.Paint(0, 3, tux.Cell{Ch: 'd'})
+	renderer.Paint(0, 0, tux.NewCell('a', tux.ColorDefault, tux.ColorDefault))
+	renderer.Paint(0, 1, tux.NewCell('b', tux.ColorDefault, tux.ColorDefault))
+	renderer.Paint(0, 2, tux.NewCell('c', tux.ColorDefault, tux.ColorDefault))
+	renderer.Paint(0, 3, tux.NewCell('d', tux.ColorDefault, tux.ColorDefault))
 
 	if got, want := renderer.String(0, 1, 3), "bc"; got != want {
 		t.Fatalf("got %q, want %q", got, want)
@@ -79,10 +79,10 @@ func TestRendererQueueCursorMove(t *testing.T) {
 type paintComponent struct {
 	tux.Atomic
 
-	b byte
+	b rune
 }
 
 func (c paintComponent) Render(_ tux.BuildContext, ctx tux.RenderContext) error {
-	ctx.Paint(0, 0, tux.Cell{Ch: c.b})
+	ctx.Paint(0, 0, tux.NewCell(c.b, tux.ColorDefault, tux.ColorDefault))
 	return nil
 }

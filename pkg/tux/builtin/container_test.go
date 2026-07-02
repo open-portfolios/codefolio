@@ -46,7 +46,7 @@ func TestContainerRenderBuildsCompositeChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, want := renderer.Buf[0][0].Ch, byte('x'); got != want {
+	if got, want := renderer.Buf[0][0].Ch, rune('x'); got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }
@@ -65,11 +65,11 @@ type paintComponent struct {
 	tux.Atomic
 
 	column int
-	b      byte
+	b      rune
 }
 
 func (c paintComponent) Render(_ tux.BuildContext, ctx tux.RenderContext) error {
-	ctx.Paint(0, c.column, tux.Cell{Ch: c.b})
+	ctx.Paint(0, c.column, tux.NewCell(c.b, tux.ColorDefault, tux.ColorDefault))
 	return nil
 }
 

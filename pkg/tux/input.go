@@ -3,9 +3,10 @@ package tux
 type Key int
 
 const (
-	KeyByte Key = iota
+	KeyRune Key = iota
 	KeyEsc
 	KeyBackspace
+	KeyDelete
 	KeyEnter
 	KeyLeft
 	KeyRight
@@ -15,5 +16,5 @@ const (
 
 type InputEvent struct {
 	Key  Key
-	Byte byte
+	Rune rune
 }

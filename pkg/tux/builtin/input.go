@@ -53,8 +53,19 @@ func (i *input) Render(build tux.BuildContext, ctx tux.RenderContext) error {
 	}
 
 	if i.focused {
-		ctx.QueueCursorMove(i.row, i.column+stdx.Clamp(i.cursor, 0, i.width-1))
+		ctx.QueueCursorMove(i.row, i.column+stdx.Clamp(tux.StringWidth(prefixRunes(i.content, i.cursor)), 0, i.width-1))
 	}
 
 	return nil
+}
+
+func prefixRunes(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if n > len(runes) {
+		n = len(runes)
+	}
+	return string(runes[:n])
 }

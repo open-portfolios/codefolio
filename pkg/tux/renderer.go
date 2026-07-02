@@ -73,6 +73,10 @@ func (r *Renderer) Submit() error {
 		}
 
 		for _, cell := range cells {
+			if cell.Width == 0 {
+				continue
+			}
+
 			if cell.Foreground != foreground || cell.Background != background {
 				if _, err := w.WriteString(colorSequence(cell.Foreground, cell.Background)); err != nil {
 					return err
@@ -85,7 +89,7 @@ func (r *Renderer) Submit() error {
 			if ch == 0 {
 				ch = ' '
 			}
-			if err := w.WriteByte(ch); err != nil {
+			if _, err := w.WriteRune(ch); err != nil {
 				return err
 			}
 		}

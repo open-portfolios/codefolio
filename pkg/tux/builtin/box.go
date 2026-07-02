@@ -47,18 +47,34 @@ func (b *box) Render(_ tux.BuildContext, ctx tux.RenderContext) error {
 
 	for row := range b.height {
 		for column := range b.width {
-			index := row*b.width + column
-			ch := byte(' ')
-			if index < len(b.content) {
-				ch = b.content[index]
-			}
-
-			ctx.Paint(b.row+row, b.column+column, tux.Cell{
-				Ch:         ch,
-				Foreground: b.foreground,
-				Background: b.background,
-			})
+			ctx.Paint(b.row+row, b.column+column, tux.NewCell(' ', b.foreground, b.background))
 		}
+	}
+
+	row := 0
+	column := 0
+	for _, ch := range b.content {
+		width := tux.RuneWidth(ch)
+		if width == 0 {
+			continue
+		}
+
+		if column+width > b.width {
+			row++
+			column = 0
+		}
+		if row >= b.height {
+			break
+		}
+		if width > b.width {
+			break
+		}
+
+		ctx.Paint(b.row+row, b.column+column, tux.NewCell(ch, b.foreground, b.background))
+		if width == 2 {
+			ctx.Paint(b.row+row, b.column+column+1, tux.ContinuationCell(b.foreground, b.background))
+		}
+		column += width
 	}
 
 	return nil

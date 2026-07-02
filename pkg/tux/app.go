@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 )
 
 type App struct {
@@ -26,6 +27,7 @@ type App struct {
 	escBuffer     []byte
 	escDeadline   time.Time
 	extPending    bool
+	utf8Buffer    []byte
 }
 
 type AppOption func(*App)
@@ -211,7 +213,6 @@ func (a *App) handleInputByte(b byte) {
 		a.escBuffer = append(a.escBuffer, b)
 		if len(a.escBuffer) == 1 {
 			if b != '[' {
-				a.dispatchInput(InputEvent{Key: KeyEsc})
 				a.escPending = false
 				a.escBuffer = nil
 			}
@@ -219,6 +220,9 @@ func (a *App) handleInputByte(b byte) {
 		}
 
 		if len(a.escBuffer) == 2 {
+			if a.escBuffer[1] >= '0' && a.escBuffer[1] <= '9' {
+				return
+			}
 			switch a.escBuffer[1] {
 			case 'A':
 				a.dispatchInput(InputEvent{Key: KeyUp})
@@ -228,8 +232,14 @@ func (a *App) handleInputByte(b byte) {
 				a.dispatchInput(InputEvent{Key: KeyRight})
 			case 'D':
 				a.dispatchInput(InputEvent{Key: KeyLeft})
-			default:
-				a.dispatchInput(InputEvent{Key: KeyEsc})
+			}
+			a.escPending = false
+			a.escBuffer = nil
+		}
+
+		if len(a.escBuffer) == 3 {
+			if a.escBuffer[1] == '3' && a.escBuffer[2] == '~' {
+				a.dispatchInput(InputEvent{Key: KeyDelete})
 			}
 			a.escPending = false
 			a.escBuffer = nil
@@ -245,28 +255,40 @@ func (a *App) handleInputByte(b byte) {
 		a.escBuffer = nil
 		a.escDeadline = time.Now().Add(30 * time.Millisecond)
 	case 8, 127:
-		a.dispatchInput(InputEvent{Key: KeyBackspace, Byte: b})
+		a.dispatchInput(InputEvent{Key: KeyBackspace, Rune: rune(b)})
 	case '\r', '\n':
-		a.dispatchInput(InputEvent{Key: KeyEnter, Byte: b})
+		a.dispatchInput(InputEvent{Key: KeyEnter, Rune: rune(b)})
 	default:
-		a.dispatchInput(InputEvent{Key: KeyByte, Byte: b})
+		a.handleRuneByte(b)
 	}
+}
+
+func (a *App) handleRuneByte(b byte) {
+	if b < utf8.RuneSelf && len(a.utf8Buffer) == 0 {
+		a.dispatchInput(InputEvent{Key: KeyRune, Rune: rune(b)})
+		return
+	}
+
+	a.utf8Buffer = append(a.utf8Buffer, b)
+	if !utf8.FullRune(a.utf8Buffer) {
+		return
+	}
+	r, size := utf8.DecodeRune(a.utf8Buffer)
+	if r != utf8.RuneError || size > 1 {
+		a.dispatchInput(InputEvent{Key: KeyRune, Rune: r})
+	}
+	a.utf8Buffer = nil
 }
 
 func (a *App) flushPendingEsc() {
 	if !a.escPending || time.Now().Before(a.escDeadline) {
 		return
 	}
-	a.dispatchInput(InputEvent{Key: KeyEsc})
 	a.escPending = false
 	a.escBuffer = nil
 }
 
 func (a *App) dispatchInput(event InputEvent) {
-	if event.Key == KeyEsc {
-		a.Stop()
-		return
-	}
 	if a.onInput != nil {
 		a.onInput(a, event)
 	}

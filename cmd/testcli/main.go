@@ -21,8 +21,15 @@ func main() {
 			switch event.Key {
 			case tux.KeyBackspace:
 				if root.cursor > 0 {
-					root.content = root.content[:root.cursor-1] + root.content[root.cursor:]
+					runes := []rune(root.content)
+					root.content = string(append(runes[:root.cursor-1], runes[root.cursor:]...))
 					root.cursor--
+					app.MarkDirty()
+				}
+			case tux.KeyDelete:
+				runes := []rune(root.content)
+				if root.cursor < len(runes) {
+					root.content = string(append(runes[:root.cursor], runes[root.cursor+1:]...))
 					app.MarkDirty()
 				}
 			case tux.KeyLeft:
@@ -31,13 +38,13 @@ func main() {
 					app.MarkDirty()
 				}
 			case tux.KeyRight:
-				if root.cursor < len(root.content) {
+				if root.cursor < len([]rune(root.content)) {
 					root.cursor++
 					app.MarkDirty()
 				}
-			case tux.KeyByte:
-				if event.Byte >= 32 && event.Byte <= 126 {
-					root.content = root.content[:root.cursor] + string(event.Byte) + root.content[root.cursor:]
+			case tux.KeyRune:
+				if event.Rune >= 32 {
+					root.content = insertRune(root.content, root.cursor, event.Rune)
 					root.cursor++
 					app.MarkDirty()
 				}
@@ -48,6 +55,22 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func insertRune(s string, index int, r rune) string {
+	runes := []rune(s)
+	if index < 0 {
+		index = 0
+	}
+	if index > len(runes) {
+		index = len(runes)
+	}
+
+	next := make([]rune, 0, len(runes)+1)
+	next = append(next, runes[:index]...)
+	next = append(next, r)
+	next = append(next, runes[index:]...)
+	return string(next)
 }
 
 type demo struct {
@@ -72,7 +95,7 @@ func (d *demo) Build(tux.BuildContext) tux.Component {
 			Column:  0,
 			Width:   40,
 			Height:  1,
-			Content: "type text; arrows move; Esc exits",
+			Content: "type text/中文; arrows move; Ctrl+C exits",
 		}),
 		builtin.Box(builtin.BoxProps{
 			Row:     3,

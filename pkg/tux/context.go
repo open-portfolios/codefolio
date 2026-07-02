@@ -3,7 +3,8 @@ package tux
 type BuildContext struct{}
 
 type Cell struct {
-	Ch         byte
+	Ch         rune
+	Width      uint8
 	Foreground Color
 	Background Color
 }

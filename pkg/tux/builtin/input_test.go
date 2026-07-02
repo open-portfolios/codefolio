@@ -62,14 +62,14 @@ func TestInputRenderWritesColors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, want := renderer.Buf[0][0], (tux.Cell{Ch: 'x', Foreground: tux.ColorRed, Background: tux.ColorBlue}); got != want {
+	if got, want := renderer.Buf[0][0], tux.NewCell('x', tux.ColorRed, tux.ColorBlue); got != want {
 		t.Fatalf("got %#v, want %#v", got, want)
 	}
 }
 
 func TestInputRenderQueuesCursorWhenFocused(t *testing.T) {
 	renderer := debug.NewRenderer(2, 5)
-	component := Input(InputProps{Row: 1, Column: 2, Width: 3, Cursor: 1, Focused: true})
+	component := Input(InputProps{Row: 1, Column: 2, Width: 3, Content: "abc", Cursor: 1, Focused: true})
 
 	if err := component.Render(tux.BuildContext{}, renderer); err != nil {
 		t.Fatal(err)
@@ -99,7 +99,7 @@ func TestInputRenderDoesNotQueueCursorWhenUnfocused(t *testing.T) {
 
 func TestInputRenderClampsCursor(t *testing.T) {
 	renderer := debug.NewRenderer(1, 3)
-	component := Input(InputProps{Width: 3, Cursor: 9, Focused: true})
+	component := Input(InputProps{Width: 3, Content: "abc", Cursor: 9, Focused: true})
 
 	if err := component.Render(tux.BuildContext{}, renderer); err != nil {
 		t.Fatal(err)
