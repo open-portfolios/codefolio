@@ -2,6 +2,7 @@ package tux
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 )
 
@@ -10,7 +11,10 @@ var (
 )
 
 type Renderer struct {
-	buf [][]Cell
+	buf          [][]Cell
+	cursorQueued bool
+	cursorRow    int
+	cursorColumn int
 }
 
 func NewRenderer(row, column int) *Renderer {
@@ -25,12 +29,18 @@ func (r *Renderer) Render(ctx BuildContext, root Component) error {
 	if err := root.Render(ctx, r); err != nil {
 		return err
 	}
-	return r.Flush()
+	return r.Submit()
 }
 
 func (r *Renderer) Paint(row, column int, cell Cell) { r.buf[row][column] = cell }
 
-func (r *Renderer) Flush() error {
+func (r *Renderer) QueueCursorMove(row, column int) {
+	r.cursorQueued = true
+	r.cursorRow = row
+	r.cursorColumn = column
+}
+
+func (r *Renderer) Submit() error {
 	w := bufio.NewWriter(os.Stdout)
 	for row, cells := range r.buf {
 		if row > 0 {
@@ -47,6 +57,12 @@ func (r *Renderer) Flush() error {
 			if err := w.WriteByte(ch); err != nil {
 				return err
 			}
+		}
+	}
+
+	if r.cursorQueued {
+		if _, err := fmt.Fprintf(w, "\x1b[%d;%dH", r.cursorRow+1, r.cursorColumn+1); err != nil {
+			return err
 		}
 	}
 

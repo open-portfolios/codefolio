@@ -663,12 +663,15 @@ The second kind is an atomic component. It paints directly into a `RenderContext
 
 ```go
 type RenderContext interface {
-    Paint(row, column int, b byte)
-    Flush() error
+    Paint(row, column int, cell Cell)
+    QueueCursorMove(row, column int)
+    Submit() error
 }
 ```
 
-The current debug renderer implements this interface with a two-dimensional byte buffer. A future terminal renderer can implement the same interface with terminal cells, style, diffing, and flushing.
+`Paint` writes a cell into the current frame. `QueueCursorMove` records the desired cursor position for the frame; the renderer applies it during `Submit()` after cell output so later painting cannot clobber the terminal cursor placement.
+
+The current debug renderer implements this interface with a two-dimensional cell buffer. A future terminal renderer can implement the same interface with terminal cells, style, diffing, and submission to the terminal environment.
 
 Runtime rules:
 

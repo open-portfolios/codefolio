@@ -10,5 +10,6 @@ type Cell struct {
 
 type RenderContext interface {
 	Paint(row, column int, cell Cell)
-	Flush() error
+	QueueCursorMove(row, column int)
+	Submit() error
 }

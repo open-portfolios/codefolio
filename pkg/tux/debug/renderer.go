@@ -7,7 +7,10 @@ var (
 )
 
 type Renderer struct {
-	Buf [][]tux.Cell
+	Buf          [][]tux.Cell
+	cursorQueued bool
+	cursorRow    int
+	cursorColumn int
 }
 
 func NewRenderer(row, column int) *Renderer {
@@ -30,5 +33,16 @@ func (r *Renderer) String(row, start, end int) string {
 	return string(line)
 }
 
+func (r *Renderer) CursorPos() (row, column int, queued bool) {
+	return r.cursorRow, r.cursorColumn, r.cursorQueued
+}
+
 func (r *Renderer) Paint(row, column int, cell tux.Cell) { r.Buf[row][column] = cell }
-func (r *Renderer) Flush() error                         { return nil }
+
+func (r *Renderer) QueueCursorMove(row, column int) {
+	r.cursorQueued = true
+	r.cursorRow = row
+	r.cursorColumn = column
+}
+
+func (r *Renderer) Submit() error { return nil }

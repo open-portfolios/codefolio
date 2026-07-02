@@ -664,12 +664,15 @@ type Component interface {
 
 ```go
 type RenderContext interface {
-    Paint(row, column int, b byte)
-    Flush() error
+    Paint(row, column int, cell Cell)
+    QueueCursorMove(row, column int)
+    Submit() error
 }
 ```
 
-当前 debug renderer 用二维 byte buffer 实现这个接口。未来真实 terminal renderer 可以用同一个接口实现 terminal cell、样式、diff 和 flush。
+`Paint` 把 cell 写入当前帧。`QueueCursorMove` 记录这一帧期望的光标位置；renderer 会在 `Submit()` 阶段、所有 cell 输出之后再应用它，避免后续绘制覆盖终端光标位置。
+
+当前 debug renderer 用二维 cell buffer 实现这个接口。未来真实 terminal renderer 可以用同一个接口实现 terminal cell、样式、diff 和提交到终端环境。
 
 运行时规则是：
 

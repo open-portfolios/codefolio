@@ -19,7 +19,7 @@ func TestRendererPrintsToStdout(t *testing.T) {
 	renderer.Paint(2, 0, Cell{Ch: 'o'})
 	renderer.Paint(2, 1, Cell{Ch: 'k'})
 
-	if err := renderer.Flush(); err != nil {
+	if err := renderer.Submit(); err != nil {
 		t.Fatal(err)
 	}
 }

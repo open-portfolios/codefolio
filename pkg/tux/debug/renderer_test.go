@@ -30,10 +30,10 @@ func TestRendererPaintWritesCell(t *testing.T) {
 	}
 }
 
-func TestRendererFlush(t *testing.T) {
+func TestRendererSubmit(t *testing.T) {
 	renderer := NewRenderer(1, 1)
 
-	if err := renderer.Flush(); err != nil {
+	if err := renderer.Submit(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -59,6 +59,20 @@ func TestRendererString(t *testing.T) {
 
 	if got, want := renderer.String(0, 1, 3), "bc"; got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestRendererQueueCursorMove(t *testing.T) {
+	renderer := NewRenderer(2, 3)
+
+	renderer.QueueCursorMove(1, 2)
+
+	row, column, queued := renderer.CursorPos()
+	if !queued {
+		t.Fatal("cursor move was not queued")
+	}
+	if row != 1 || column != 2 {
+		t.Fatalf("got (%d,%d), want (1,2)", row, column)
 	}
 }
 
