@@ -19,12 +19,13 @@ func TestNewRendererCreatesBuffer(t *testing.T) {
 	}
 }
 
-func TestRendererPaintWritesByte(t *testing.T) {
+func TestRendererPaintWritesCell(t *testing.T) {
 	renderer := NewRenderer(2, 3)
+	cell := tux.Cell{Ch: 'x', Foreground: tux.ColorRed, Background: tux.ColorBlue}
 
-	renderer.Paint(1, 2, 'x')
+	renderer.Paint(1, 2, cell)
 
-	if got, want := renderer.Buf[1][2], byte('x'); got != want {
+	if got, want := renderer.Buf[1][2], cell; got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }
@@ -44,7 +45,19 @@ func TestRendererRender(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, want := renderer.Buf[0][0], byte('x'); got != want {
+	if got, want := renderer.Buf[0][0].Ch, byte('x'); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestRendererString(t *testing.T) {
+	renderer := NewRenderer(1, 4)
+	renderer.Paint(0, 0, tux.Cell{Ch: 'a'})
+	renderer.Paint(0, 1, tux.Cell{Ch: 'b'})
+	renderer.Paint(0, 2, tux.Cell{Ch: 'c'})
+	renderer.Paint(0, 3, tux.Cell{Ch: 'd'})
+
+	if got, want := renderer.String(0, 1, 3), "bc"; got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }
@@ -56,6 +69,6 @@ type paintComponent struct {
 }
 
 func (c paintComponent) Render(_ tux.BuildContext, ctx tux.RenderContext) error {
-	ctx.Paint(0, 0, c.b)
+	ctx.Paint(0, 0, tux.Cell{Ch: c.b})
 	return nil
 }

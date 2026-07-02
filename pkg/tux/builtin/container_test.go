@@ -30,7 +30,7 @@ func TestContainerRenderChildrenInOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, want := string(renderer.Buf[0]), "abc"; got != want {
+	if got, want := renderer.String(0, 0, 3), "abc"; got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }
@@ -46,7 +46,7 @@ func TestContainerRenderBuildsCompositeChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, want := renderer.Buf[0][0], byte('x'); got != want {
+	if got, want := renderer.Buf[0][0].Ch, byte('x'); got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }
@@ -69,7 +69,7 @@ type paintComponent struct {
 }
 
 func (c paintComponent) Render(_ tux.BuildContext, ctx tux.RenderContext) error {
-	ctx.Paint(0, c.column, c.b)
+	ctx.Paint(0, c.column, tux.Cell{Ch: c.b})
 	return nil
 }
 
