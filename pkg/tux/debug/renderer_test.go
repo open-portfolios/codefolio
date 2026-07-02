@@ -21,7 +21,7 @@ func TestNewRendererCreatesBuffer(t *testing.T) {
 
 func TestRendererPaintWritesCell(t *testing.T) {
 	renderer := NewRenderer(2, 3)
-	cell := tux.NewCell('x', tux.ColorRed, tux.ColorBlue)
+	cell := tux.Cell{Ch: 'x', Width: 1, Foreground: tux.ColorRed, Background: tux.ColorBlue}
 
 	renderer.Paint(1, 2, cell)
 
@@ -52,10 +52,10 @@ func TestRendererRender(t *testing.T) {
 
 func TestRendererString(t *testing.T) {
 	renderer := NewRenderer(1, 4)
-	renderer.Paint(0, 0, tux.NewCell('a', tux.ColorDefault, tux.ColorDefault))
-	renderer.Paint(0, 1, tux.NewCell('b', tux.ColorDefault, tux.ColorDefault))
-	renderer.Paint(0, 2, tux.NewCell('c', tux.ColorDefault, tux.ColorDefault))
-	renderer.Paint(0, 3, tux.NewCell('d', tux.ColorDefault, tux.ColorDefault))
+	renderer.Paint(0, 0, tux.Cell{Ch: 'a', Width: 1})
+	renderer.Paint(0, 1, tux.Cell{Ch: 'b', Width: 1})
+	renderer.Paint(0, 2, tux.Cell{Ch: 'c', Width: 1})
+	renderer.Paint(0, 3, tux.Cell{Ch: 'd', Width: 1})
 
 	if got, want := renderer.String(0, 1, 3), "bc"; got != want {
 		t.Fatalf("got %q, want %q", got, want)
@@ -83,6 +83,6 @@ type paintComponent struct {
 }
 
 func (c paintComponent) Render(_ tux.BuildContext, ctx tux.RenderContext) error {
-	ctx.Paint(0, 0, tux.NewCell(c.b, tux.ColorDefault, tux.ColorDefault))
+	ctx.Paint(0, 0, tux.Cell{Ch: c.b, Width: 1})
 	return nil
 }

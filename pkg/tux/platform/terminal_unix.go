@@ -1,6 +1,6 @@
 //go:build !windows
 
-package tux
+package platform
 
 import (
 	"os"
@@ -8,11 +8,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type terminalState struct {
+type State struct {
 	termios unix.Termios
 }
 
-func enterRawMode() (*terminalState, error) {
+func EnterRawMode() (*State, error) {
 	fd := int(os.Stdin.Fd())
 	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
 	if err != nil {
@@ -30,10 +30,10 @@ func enterRawMode() (*terminalState, error) {
 	if err := unix.IoctlSetTermios(fd, unix.TCSETS, &raw); err != nil {
 		return nil, err
 	}
-	return &terminalState{termios: *termios}, nil
+	return &State{termios: *termios}, nil
 }
 
-func exitRawMode(state *terminalState) error {
+func ExitRawMode(state *State) error {
 	if state == nil {
 		return nil
 	}

@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
+
+	"github.com/open-portfolios/codefolio/pkg/tux/platform"
 )
 
 type App struct {
@@ -22,7 +24,7 @@ type App struct {
 	stopOnce      sync.Once
 	frameDuration time.Duration
 	onInput       func(*App, InputEvent)
-	terminal      *terminalState
+	terminal      *platform.State
 	escPending    bool
 	escBuffer     []byte
 	escDeadline   time.Time
@@ -134,7 +136,7 @@ func (a *App) Run() error {
 }
 
 func (a *App) Open() error {
-	state, err := enterRawMode()
+	state, err := platform.EnterRawMode()
 	if err != nil {
 		return err
 	}
@@ -145,7 +147,7 @@ func (a *App) Open() error {
 
 func (a *App) Close() error {
 	_, writeErr := os.Stdout.WriteString("\x1b[?1049l")
-	rawErr := exitRawMode(a.terminal)
+	rawErr := platform.ExitRawMode(a.terminal)
 	a.terminal = nil
 	if writeErr != nil {
 		return writeErr

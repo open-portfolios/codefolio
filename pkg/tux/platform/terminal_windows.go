@@ -1,6 +1,6 @@
 //go:build windows
 
-package tux
+package platform
 
 import (
 	"os"
@@ -8,12 +8,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-type terminalState struct {
+type State struct {
 	inMode  uint32
 	outMode uint32
 }
 
-func enterRawMode() (*terminalState, error) {
+func EnterRawMode() (*State, error) {
 	in := windows.Handle(os.Stdin.Fd())
 	out := windows.Handle(os.Stdout.Fd())
 
@@ -40,10 +40,10 @@ func enterRawMode() (*terminalState, error) {
 		return nil, err
 	}
 
-	return &terminalState{inMode: inMode, outMode: outMode}, nil
+	return &State{inMode: inMode, outMode: outMode}, nil
 }
 
-func exitRawMode(state *terminalState) error {
+func ExitRawMode(state *State) error {
 	if state == nil {
 		return nil
 	}

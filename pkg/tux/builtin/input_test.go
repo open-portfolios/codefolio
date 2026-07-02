@@ -62,7 +62,7 @@ func TestInputRenderWritesColors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, want := renderer.Buf[0][0], tux.NewCell('x', tux.ColorRed, tux.ColorBlue); got != want {
+	if got, want := renderer.Buf[0][0], (tux.Cell{Ch: 'x', Width: 1, Foreground: tux.ColorRed, Background: tux.ColorBlue}); got != want {
 		t.Fatalf("got %#v, want %#v", got, want)
 	}
 }

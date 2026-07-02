@@ -69,7 +69,7 @@ type paintComponent struct {
 }
 
 func (c paintComponent) Render(_ tux.BuildContext, ctx tux.RenderContext) error {
-	ctx.Paint(0, c.column, tux.NewCell(c.b, tux.ColorDefault, tux.ColorDefault))
+	ctx.Paint(0, c.column, tux.Cell{Ch: c.b, Width: 1})
 	return nil
 }
 

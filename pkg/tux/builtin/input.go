@@ -3,6 +3,7 @@ package builtin
 import (
 	"github.com/open-portfolios/codefolio/pkg/stdx"
 	"github.com/open-portfolios/codefolio/pkg/tux"
+	"github.com/open-portfolios/codefolio/pkg/tux/misc"
 )
 
 var (
@@ -53,7 +54,7 @@ func (i *input) Render(build tux.BuildContext, ctx tux.RenderContext) error {
 	}
 
 	if i.focused {
-		ctx.QueueCursorMove(i.row, i.column+stdx.Clamp(tux.StringWidth(prefixRunes(i.content, i.cursor)), 0, i.width-1))
+		ctx.QueueCursorMove(i.row, i.column+stdx.Clamp(misc.StringWidth(prefixRunes(i.content, i.cursor)), 0, i.width-1))
 	}
 
 	return nil
