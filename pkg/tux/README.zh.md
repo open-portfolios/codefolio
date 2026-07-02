@@ -641,7 +641,7 @@ Build(ctx) 读取 State，或把 State 传给支持绑定的组件
   -> 相关组件重新 Build
 ```
 
-`Render()` 阶段不读取 state，也不需要 `RenderContext`。
+`Render(...)` 阶段会接收 `RenderContext` 并向其中绘制内容。它不应该建立 state 订阅；会影响组件结构或 props 的 state 读取应该发生在 `Build(ctx)` 中。
 
 ## 15. Component 原理
 
@@ -650,7 +650,7 @@ tux 中所有组件都实现同一个接口：
 ```go
 type Component interface {
     Build(ctx BuildContext) Component
-    Render() RenderObject
+    Render(build BuildContext, render RenderContext) error
 }
 ```
 
@@ -658,13 +658,25 @@ type Component interface {
 
 第一类是组合组件。组合组件不直接渲染，它通过 `Build(ctx)` 返回子组件树。
 
-第二类是原子组件。原子组件直接通过 `Render()` 返回 `RenderObject`。
+第二类是原子组件。原子组件通过 `Render(...)` 直接向 `RenderContext` 绘制。
+
+`RenderContext` 是底层渲染目标：
+
+```go
+type RenderContext interface {
+    Paint(row, column int, b byte)
+    Flush() error
+}
+```
+
+当前 debug renderer 用二维 byte buffer 实现这个接口。未来真实 terminal renderer 可以用同一个接口实现 terminal cell、样式、diff 和 flush。
 
 运行时规则是：
 
-- 如果 `Render()` 返回非 nil，使用这个 `RenderObject`。
-- 如果 `Render()` 返回 nil，调用 `Build(ctx)` 继续展开。
-- 最终必须展开到某个原子组件。
+- 组合组件通过 `Build(ctx)` 返回另一个组件，通常继承 `Composite.Render(...)` 的 no-op 行为。
+- 原子组件的 `Build(ctx)` 返回 nil，并实现 `Render(...)` 向渲染上下文绘制。
+- 拥有 children 的组件，例如 `Container`，自己决定如何展开和渲染这些 children。
+- 如果 `Build(ctx)` 返回组件自身，tux 认为这是 composition cycle，并直接 panic。
 
 ## 16. Atomic 与 Composite
 
@@ -679,7 +691,7 @@ func (Atomic) Build(ctx BuildContext) Component {
     return nil
 }
 
-func (Atomic) Render() RenderObject {
+func (Atomic) Render(build BuildContext, render RenderContext) error {
     panic("tux: atomic component must implement Render")
 }
 ```
@@ -693,52 +705,58 @@ func (Composite) Build(ctx BuildContext) Component {
     panic("tux: composite component must implement Build")
 }
 
-func (Composite) Render() RenderObject {
+func (Composite) Render(build BuildContext, render RenderContext) error {
     return nil
 }
 ```
 
 这样可以保证：
 
-- 原子组件如果忘记实现 `Render()`，运行时会 panic。
+- 原子组件如果忘记实现 `Render(...)`，运行时会 panic。
 - 组合组件如果没有生成 `Build(ctx)`，运行时会 panic。
 - 原子组件默认没有子组件展开逻辑。
 - 组合组件默认没有直接渲染逻辑。
 
 ## 17. 原子组件
 
-原子组件是手写 Go 组件，负责直接生成 `RenderObject`。
+原子组件是手写 Go 组件，负责直接向 `RenderContext` 绘制。
 
 示例：
 
 ```go
-type BoxProps struct {
-    Str string
+type TextProps struct {
+    Row    int
+    Column int
+    Str    string
 }
 
-type box struct {
+type text struct {
     tux.Atomic
 
-    str      string
-    children []tux.Component
+    row    int
+    column int
+    str    string
 }
 
-func Box(props BoxProps, children ...tux.Component) tux.Component {
-    return &box{
-        str:      props.Str,
-        children: children,
+func Text(props TextProps) tux.Component {
+    return &text{
+        row:    props.Row,
+        column: props.Column,
+        str:    props.Str,
     }
 }
 
-func (b *box) Render() tux.RenderObject {
-    return &boxRenderObject{
-        str:      b.str,
-        children: b.children,
+func (t *text) Render(build tux.BuildContext, render tux.RenderContext) error {
+    for i := 0; i < len(t.str); i++ {
+        render.Paint(t.row, t.column+i, t.str[i])
     }
+    return nil
 }
 ```
 
-原子组件可以接收 children。是否使用 children 由该组件自己的 `Render()` 决定。
+原子组件可以接收 children。是否使用 children 由该组件自己的 `Render(...)` 决定。
+
+`Container` 是这个规则的第一个内置例子：它是 atomic，但它的 render 方法会对每个 child 调用 `Build(ctx)`，直到展开到 atomic artifact，然后调用这个 child 的 `Render(...)`。如果某个 child build 返回自身，`Container` 会 panic，因为这是 composition cycle。
 
 ## 18. 组合组件
 
@@ -787,10 +805,8 @@ State.Set(...)
   -> scheduler rebuild dirty elements
   -> Build(ctx) 重新生成组件树
   -> reconcile child component
-  -> atomic Render() 生成 RenderObject
-  -> layout / paint
-  -> buffer diff
-  -> terminal flush
+  -> atomic Render(...) 绘制到 RenderContext
+  -> buffer diff / terminal flush
 ```
 
 subscriber 绑定的是运行时内部的 mounted element，不是临时创建出来的 component value。因为 `Build(ctx)` 每次都可以创建新的 component tree，component value 本身不适合作为稳定身份。
@@ -815,5 +831,4 @@ key 用于 mounted element 的 identity 和 reconcile。用户 XML 中不需要�
 - 不要求 XML 编译器检查 props 字段是否存在。
 - 不要求 XML 编译器检查 `@{...}` 是否是 state。
 - 不使用 whole-app dirty。
-- 不设计 `RenderContext`。
-- 不允许 `Render()` 阶段参与 state 订阅。
+- 不允许 `Render(...)` 阶段参与 state 订阅。

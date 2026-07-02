@@ -640,7 +640,7 @@ Build(ctx) reads State or passes State to components that support binding
   -> affected components Build again
 ```
 
-The `Render()` phase does not read state and does not need `RenderContext`.
+The `Render(...)` phase receives a `RenderContext` and paints into it. It must not create state subscriptions; state reads that affect component structure or props belong in `Build(ctx)`.
 
 ## 15. Component Internals
 
@@ -649,7 +649,7 @@ All tux components implement the same interface:
 ```go
 type Component interface {
     Build(ctx BuildContext) Component
-    Render() RenderObject
+    Render(build BuildContext, render RenderContext) error
 }
 ```
 
@@ -657,13 +657,25 @@ This interface represents two kinds of components.
 
 The first kind is a composite component. It does not render directly; it returns a child component tree from `Build(ctx)`.
 
-The second kind is an atomic component. It directly returns a `RenderObject` from `Render()`.
+The second kind is an atomic component. It paints directly into a `RenderContext` from `Render(...)`.
+
+`RenderContext` is the low-level rendering target:
+
+```go
+type RenderContext interface {
+    Paint(row, column int, b byte)
+    Flush() error
+}
+```
+
+The current debug renderer implements this interface with a two-dimensional byte buffer. A future terminal renderer can implement the same interface with terminal cells, style, diffing, and flushing.
 
 Runtime rules:
 
-- If `Render()` returns non-nil, use that `RenderObject`.
-- If `Render()` returns nil, call `Build(ctx)` and continue expanding.
-- Expansion must eventually reach an atomic component.
+- Composite components return another component from `Build(ctx)` and usually inherit the no-op `Composite.Render(...)`.
+- Atomic components return nil from `Build(ctx)` and implement `Render(...)` to paint into the render context.
+- Components that own children, such as `Container`, decide how to expand and render those children.
+- If `Build(ctx)` returns the same component value, tux treats it as a composition cycle and panics.
 
 ## 16. Atomic And Composite
 
@@ -678,7 +690,7 @@ func (Atomic) Build(ctx BuildContext) Component {
     return nil
 }
 
-func (Atomic) Render() RenderObject {
+func (Atomic) Render(build BuildContext, render RenderContext) error {
     panic("tux: atomic component must implement Render")
 }
 ```
@@ -692,52 +704,58 @@ func (Composite) Build(ctx BuildContext) Component {
     panic("tux: composite component must implement Build")
 }
 
-func (Composite) Render() RenderObject {
+func (Composite) Render(build BuildContext, render RenderContext) error {
     return nil
 }
 ```
 
 This guarantees:
 
-- An atomic component that forgets to implement `Render()` panics at runtime.
+- An atomic component that forgets to implement `Render(...)` panics at runtime.
 - A composite component without generated `Build(ctx)` panics at runtime.
 - Atomic components have no component-expansion logic by default.
 - Composite components have no direct-rendering logic by default.
 
 ## 17. Atomic Components
 
-Atomic components are handwritten Go components that directly generate `RenderObject`.
+Atomic components are handwritten Go components that paint directly into a `RenderContext`.
 
 Example:
 
 ```go
-type BoxProps struct {
-    Str string
+type TextProps struct {
+    Row    int
+    Column int
+    Str    string
 }
 
-type box struct {
+type text struct {
     tux.Atomic
 
-    str      string
-    children []tux.Component
+    row    int
+    column int
+    str    string
 }
 
-func Box(props BoxProps, children ...tux.Component) tux.Component {
-    return &box{
-        str:      props.Str,
-        children: children,
+func Text(props TextProps) tux.Component {
+    return &text{
+        row:    props.Row,
+        column: props.Column,
+        str:    props.Str,
     }
 }
 
-func (b *box) Render() tux.RenderObject {
-    return &boxRenderObject{
-        str:      b.str,
-        children: b.children,
+func (t *text) Render(build tux.BuildContext, render tux.RenderContext) error {
+    for i := 0; i < len(t.str); i++ {
+        render.Paint(t.row, t.column+i, t.str[i])
     }
+    return nil
 }
 ```
 
-Atomic components may receive children. Whether those children are used is decided by that component's own `Render()` implementation.
+Atomic components may receive children. Whether those children are used is decided by that component's own `Render(...)` implementation.
+
+`Container` is the first builtin example of this rule: it is atomic, but its render method expands each child through `Build(ctx)` until an atomic artifact is reached, then calls that child's `Render(...)`. If a child build returns itself, `Container` panics because that is a composition cycle.
 
 ## 18. Composite Components
 
@@ -786,10 +804,8 @@ State.Set(...)
   -> scheduler rebuild dirty elements
   -> Build(ctx) regenerates component tree
   -> reconcile child component
-  -> atomic Render() generates RenderObject
-  -> layout / paint
-  -> buffer diff
-  -> terminal flush
+  -> atomic Render(...) paints into RenderContext
+  -> buffer diff / terminal flush
 ```
 
 Subscribers are bound to internal mounted elements, not temporary component values. `Build(ctx)` may create a new component tree each time, so component values are not stable identities.
@@ -814,5 +830,4 @@ The first version explicitly does not do the following:
 - No requirement for the XML compiler to check whether props fields exist.
 - No requirement for the XML compiler to check whether `@{...}` is state.
 - No whole-app dirty.
-- No `RenderContext`.
-- No state subscription during `Render()`.
+- No state subscription during `Render(...)`.
