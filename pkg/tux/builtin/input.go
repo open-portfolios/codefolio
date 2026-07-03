@@ -176,20 +176,9 @@ func (i *input) Render(build tux.BuildContext, ctx tux.RenderContext) error {
 	// If this is the focused component, set cursor position
 	if app := build.App(); app != nil && app.GetFocus() == i {
 		// Clamp to input box width (allow cursor at right edge)
-		cursorVisualPos := min(misc.StringWidth(prefixRunes(content, cursor)), i.box.width)
+		cursorVisualPos := min(misc.StringWidth(misc.PrefixRunes(content, cursor)), i.box.width)
 		ctx.QueueCursorMove(i.box.row, i.box.column+cursorVisualPos)
 	}
 
 	return nil
-}
-
-func prefixRunes(s string, n int) string {
-	if n <= 0 {
-		return ""
-	}
-	runes := []rune(s)
-	if n > len(runes) {
-		n = len(runes)
-	}
-	return string(runes[:n])
 }
