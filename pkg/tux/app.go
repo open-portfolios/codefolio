@@ -27,7 +27,11 @@ type App struct {
 	stopOnce sync.Once
 
 	frameDuration time.Duration
-	onInput       func(*App, InputEvent)
+	onKeyboard    func(*App, KeyboardEvent)
+	onError       func(error)
+
+	focused      Component // currently focused component
+	focusApplied bool      // whether an AutoFocus component has been applied in this render pass
 
 	buildEpoch uint64 // incremented before each Build pass
 	keyboard   keyboardListener
@@ -44,6 +48,9 @@ func NewApp(root Component, options ...AppOption) *App {
 		dirtyCh:       make(chan struct{}, 1),
 		stopCh:        make(chan struct{}),
 		frameDuration: time.Second / 30,
+		onError: func(err error) {
+			panic(fmt.Sprintf("tux: unhandled error: %v", err))
+		},
 	}
 	for _, option := range options {
 		option(app)
@@ -68,9 +75,15 @@ func WithFrameRate(fps int) AppOption {
 	}
 }
 
-func WithInput(fn func(*App, InputEvent)) AppOption {
+func WithKeyboard(fn func(*App, KeyboardEvent)) AppOption {
 	return func(app *App) {
-		app.onInput = fn
+		app.onKeyboard = fn
+	}
+}
+
+func WithErrorHandler(fn func(error)) AppOption {
+	return func(app *App) {
+		app.onError = fn
 	}
 }
 
@@ -113,12 +126,13 @@ func (a *App) Run() error {
 			for {
 				select {
 				case b := <-inputCh:
-					if b == 3 { // Ctrl-C
-						a.Stop()
-						break drain
-					}
 					for _, e := range a.keyboard.handleByte(b) {
-						a.dispatchInput(e)
+						// Check for Ctrl+C
+						if e.Mod == ModCtrl && e.Key == KeyRune && e.Rune == 'c' {
+							a.Stop()
+							break drain
+						}
+						a.dispatchKeyboard(e)
 					}
 				default:
 					break drain
@@ -127,7 +141,7 @@ func (a *App) Run() error {
 
 			// Flush any ESC sequence that has waited past its deadline.
 			for _, e := range a.keyboard.flush() {
-				a.dispatchInput(e)
+				a.dispatchKeyboard(e)
 			}
 
 			// Render once if the frame is dirty.
@@ -183,9 +197,11 @@ func (a *App) MarkDirty() {
 // passes are not duplicated.
 func (a *App) Render() error {
 	a.buildEpoch++
+	a.focusApplied = false // Reset AutoFocus flag for this render pass
 	ctx := BuildContext{
 		notify: a.MarkDirty,
 		epoch:  a.buildEpoch,
+		app:    a,
 	}
 
 	// Walk the Build chain until we reach an atomic component (Build returns nil).
@@ -209,9 +225,44 @@ func (a *App) Render() error {
 	return a.renderer.Render(ctx, root)
 }
 
-func (a *App) dispatchInput(event InputEvent) {
-	if a.onInput != nil {
-		a.onInput(a, event)
+// SetFocus sets the currently focused component.
+func (a *App) SetFocus(component Component) {
+	a.focused = component
+	a.MarkDirty()
+}
+
+// GetFocus returns the currently focused component.
+func (a *App) GetFocus() Component {
+	return a.focused
+}
+
+// MarkFocusApplied marks that an AutoFocus component has been applied in this render pass.
+// This is used internally to ensure only the first AutoFocus component gets focus.
+func (a *App) MarkFocusApplied() {
+	a.focusApplied = true
+}
+
+// IsFocusApplied returns whether an AutoFocus component has already been applied in this render pass.
+func (a *App) IsFocusApplied() bool {
+	return a.focusApplied
+}
+
+func (a *App) dispatchKeyboard(event KeyboardEvent) {
+	// Prioritize focused component
+	if a.focused != nil {
+		if handler, ok := a.focused.(KeyboardHandler); ok {
+			if err := handler.OnKeyboard(event); err != nil {
+				if a.onError != nil {
+					a.onError(err)
+				}
+			}
+			return // Event consumed
+		}
+	}
+
+	// Fallback to global keyboard callback
+	if a.onKeyboard != nil {
+		a.onKeyboard(a, event)
 	}
 }
 

@@ -63,3 +63,12 @@ func (s *State[T]) Update(fn func(T) T) {
 		w()
 	}
 }
+
+// Value returns the current value without subscribing to changes.
+// Use this when you need to read state outside of a Build pass.
+// Safe to call from any goroutine.
+func (s *State[T]) Value() T {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.value
+}

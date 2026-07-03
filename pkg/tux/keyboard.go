@@ -5,7 +5,7 @@ import (
 	"unicode/utf8"
 )
 
-// keyboardListener decodes raw stdin bytes into InputEvents. It handles
+// keyboardListener decodes raw stdin bytes into KeyboardEvents. It handles
 // multi-byte UTF-8 sequences, ANSI escape sequences (arrow keys, Delete),
 // Windows extended key codes (0x00 / 0xE0 prefix), and standalone ESC presses.
 type keyboardListener struct {
@@ -16,21 +16,21 @@ type keyboardListener struct {
 	utf8Buffer  []byte
 }
 
-// handleByte processes one raw byte from stdin and returns any InputEvents it
+// handleByte processes one raw byte from stdin and returns any KeyboardEvents it
 // produces. Most bytes produce at most one event; an ESC byte produces none
 // until either the sequence completes or the deadline expires (see flush).
-func (k *keyboardListener) handleByte(b byte) []InputEvent {
+func (k *keyboardListener) handleByte(b byte) []KeyboardEvent {
 	if k.extPending {
 		k.extPending = false
 		switch b {
 		case 'H':
-			return []InputEvent{{Key: KeyUp}}
+			return []KeyboardEvent{{Key: KeyUp}}
 		case 'P':
-			return []InputEvent{{Key: KeyDown}}
+			return []KeyboardEvent{{Key: KeyDown}}
 		case 'K':
-			return []InputEvent{{Key: KeyLeft}}
+			return []KeyboardEvent{{Key: KeyLeft}}
 		case 'M':
-			return []InputEvent{{Key: KeyRight}}
+			return []KeyboardEvent{{Key: KeyRight}}
 		}
 		return nil
 	}
@@ -44,7 +44,7 @@ func (k *keyboardListener) handleByte(b byte) []InputEvent {
 				// Not a CSI sequence — discard and emit standalone ESC.
 				k.escPending = false
 				k.escBuffer = nil
-				return []InputEvent{{Key: KeyEsc}}
+				return []KeyboardEvent{{Key: KeyEsc}}
 			}
 			return nil
 		}
@@ -55,35 +55,35 @@ func (k *keyboardListener) handleByte(b byte) []InputEvent {
 				// Extended sequence like ESC [ 3 ~ — wait for one more byte.
 				return nil
 			}
-			var event *InputEvent
+			var event *KeyboardEvent
 			switch k.escBuffer[1] {
 			case 'A':
-				event = &InputEvent{Key: KeyUp}
+				event = &KeyboardEvent{Key: KeyUp}
 			case 'B':
-				event = &InputEvent{Key: KeyDown}
+				event = &KeyboardEvent{Key: KeyDown}
 			case 'C':
-				event = &InputEvent{Key: KeyRight}
+				event = &KeyboardEvent{Key: KeyRight}
 			case 'D':
-				event = &InputEvent{Key: KeyLeft}
+				event = &KeyboardEvent{Key: KeyLeft}
 			}
 			k.escPending = false
 			k.escBuffer = nil
 			if event != nil {
-				return []InputEvent{*event}
+				return []KeyboardEvent{*event}
 			}
 			return nil
 		}
 
 		// ESC [ <digit> <byte>
 		if len(k.escBuffer) == 3 {
-			var event *InputEvent
+			var event *KeyboardEvent
 			if k.escBuffer[1] == '3' && k.escBuffer[2] == '~' {
-				event = &InputEvent{Key: KeyDelete}
+				event = &KeyboardEvent{Key: KeyDelete}
 			}
 			k.escPending = false
 			k.escBuffer = nil
 			if event != nil {
-				return []InputEvent{*event}
+				return []KeyboardEvent{*event}
 			}
 			return nil
 		}
@@ -104,9 +104,15 @@ func (k *keyboardListener) handleByte(b byte) []InputEvent {
 		k.escDeadline = time.Now().Add(30 * time.Millisecond)
 		return nil
 	case 8, 127:
-		return []InputEvent{{Key: KeyBackspace, Rune: rune(b)}}
+		return []KeyboardEvent{{Key: KeyBackspace}}
 	case '\r', '\n':
-		return []InputEvent{{Key: KeyEnter, Rune: rune(b)}}
+		return []KeyboardEvent{{Key: KeyEnter}}
+	case '\t':
+		return []KeyboardEvent{{Key: KeyTab}}
+	case 1, 2, 3, 4, 5, 6, 7, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26:
+		// Ctrl+A through Ctrl+Z (excluding tab, enter, backspace)
+		// Map control characters to Ctrl + lowercase letter
+		return []KeyboardEvent{{Key: KeyRune, Rune: rune('a' + b - 1), Mod: ModCtrl}}
 	default:
 		return k.handleRuneByte(b)
 	}
@@ -114,9 +120,9 @@ func (k *keyboardListener) handleByte(b byte) []InputEvent {
 
 // handleRuneByte assembles multi-byte UTF-8 sequences and emits a KeyRune
 // event once a complete rune is decoded.
-func (k *keyboardListener) handleRuneByte(b byte) []InputEvent {
+func (k *keyboardListener) handleRuneByte(b byte) []KeyboardEvent {
 	if b < utf8.RuneSelf && len(k.utf8Buffer) == 0 {
-		return []InputEvent{{Key: KeyRune, Rune: rune(b)}}
+		return []KeyboardEvent{{Key: KeyRune, Rune: rune(b)}}
 	}
 
 	k.utf8Buffer = append(k.utf8Buffer, b)
@@ -126,7 +132,7 @@ func (k *keyboardListener) handleRuneByte(b byte) []InputEvent {
 	r, size := utf8.DecodeRune(k.utf8Buffer)
 	k.utf8Buffer = nil
 	if r != utf8.RuneError || size > 1 {
-		return []InputEvent{{Key: KeyRune, Rune: r}}
+		return []KeyboardEvent{{Key: KeyRune, Rune: r}}
 	}
 	return nil
 }
@@ -134,11 +140,11 @@ func (k *keyboardListener) handleRuneByte(b byte) []InputEvent {
 // flush checks whether a pending ESC sequence has timed out. If the deadline
 // has passed, the pending state is cleared and a standalone KeyEsc event is
 // returned. Call this once per frame to bound ESC latency.
-func (k *keyboardListener) flush() []InputEvent {
+func (k *keyboardListener) flush() []KeyboardEvent {
 	if !k.escPending || time.Now().Before(k.escDeadline) {
 		return nil
 	}
 	k.escPending = false
 	k.escBuffer = nil
-	return []InputEvent{{Key: KeyEsc}}
+	return []KeyboardEvent{{Key: KeyEsc}}
 }
