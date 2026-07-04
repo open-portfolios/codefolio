@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+
+vars:
+  BUILD_DIR: "{{.TASKFILE_DIR}}/build"
+  INSTALL_DIR: "{{.TASKFILE_DIR}}/install"
+
+tasks:
+  build:
+    desc: Build vendored dependencies
+    dir: "{{.TASKFILE_DIR}}"
+    preconditions:
+      - sh: command -v cmake > /dev/null
+        msg: CMake must be installed to build vendored dependencies.
+      - sh: command -v ninja > /dev/null
+        msg: Ninja must be installed to build vendored dependencies.
+    cmds:
+      - cmake -S yoga -B build -G Ninja -DCMAKE_INSTALL_PREFIX="{{.INSTALL_DIR}}"
+      - cmake --build build --target install
+    silent: true

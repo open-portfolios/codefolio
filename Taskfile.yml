@@ -2,6 +2,9 @@
 
 version: "3"
 
+includes:
+  vendor: ./vendor
+
 vars:
   CLI_PROJECT_ROOT: "{{.TASKFILE_DIR}}/cmd/cli"
   APP_PROJECT_ROOT: "{{.TASKFILE_DIR}}/cmd/app"
