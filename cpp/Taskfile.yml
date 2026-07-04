@@ -44,3 +44,4 @@ tasks:
             -outdir "{{.WRAPPER_DIR}}/{{.ITEM}}"      \
             -o "{{.WRAPPER_DIR}}/{{.ITEM}}/wrapper.c" \
           "{{.SWIG_DIR}}/{{.ITEM}}.swig"
+    silent: true
