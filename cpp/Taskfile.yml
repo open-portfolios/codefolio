@@ -3,6 +3,8 @@
 version: "3"
 
 vars:
+  SOURCES:
+    - yoga
   BUILD_DIR: "{{.TASKFILE_DIR}}/build"
   INSTALL_DIR: "{{.TASKFILE_DIR}}/install"
 
@@ -16,6 +18,10 @@ tasks:
       - sh: command -v ninja > /dev/null
         msg: Ninja must be installed to build vendored dependencies.
     cmds:
-      - cmake -S yoga -B build -G Ninja -DCMAKE_INSTALL_PREFIX="{{.INSTALL_DIR}}"
-      - cmake --build build --target install
+      - mkdir build
+      - mkdir install
+      - for: { var: SOURCES }
+        cmd: cmake -S "src/{{.ITEM}}" -B "{{.BUILD_DIR}}/{{.ITEM}}" -G Ninja -DCMAKE_INSTALL_PREFIX="{{.INSTALL_DIR}}"
+      - for: { var: SOURCES }
+        cmd: cmake --build "{{.BUILD_DIR}}/{{.ITEM}}" --target install
     silent: true
