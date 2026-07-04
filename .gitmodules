@@ -1,0 +1,3 @@
+[submodule "vendor/yoga"]
+	path = vendor/yoga
+	url = github:react/yoga
