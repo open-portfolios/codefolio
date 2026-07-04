@@ -3,7 +3,7 @@
 version: "3"
 
 includes:
-  vendor: ./vendor
+  cpp: ./cpp
 
 vars:
   CLI_PROJECT_ROOT: "{{.TASKFILE_DIR}}/cmd/cli"
