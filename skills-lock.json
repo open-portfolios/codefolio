@@ -37,6 +37,12 @@
       "skillPath": "skills/productivity/handoff/SKILL.md",
       "computedHash": "b7c38b5061b73217e5478f9446fc403be17ce311d4c23a108cc37b5b4604fa37"
     },
+    "metaspartan-go-tui": {
+      "source": "cylixlee/skills",
+      "sourceType": "github",
+      "skillPath": "techstack/metaspartan-go-tui/SKILL.md",
+      "computedHash": "abd33a93134ef4df0a9ff1abd3d5789ae04bcda174a26cc42be3382e8dd0d073"
+    },
     "tdd": {
       "source": "mattpocock/skills",
       "sourceType": "github",
