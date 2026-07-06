@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "charmland-go-tui": {
+      "source": "cylixlee/skills",
+      "sourceType": "github",
+      "skillPath": ".deprecated/charmland-go-tui/SKILL.md",
+      "computedHash": "fa571c8db470c6fc12696180699f2ded910cba2cc18d3a4f3c1e5c6c0ac7074a"
+    },
     "design-pattern": {
       "source": "cylixlee/skills",
       "sourceType": "github",
