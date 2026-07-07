@@ -8,6 +8,16 @@ vars:
   BUILD_DIR: "{{.TASKFILE_DIR}}/build"
 
 tasks:
+  check:
+    desc: Check the project for errors
+    cmds:
+      - go build ./...
+      - go vet ./...
+      - cd cmd/app/web && pnpm build
+      - cd cmd/app/web && pnpm lint
+    silent: true
+    interactive: true
+
   cli:
     desc: Run codefolio CLI
     cmds:
