@@ -65,14 +65,19 @@ type inputSentMsg struct {
 func (m *InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c":
+		k := msg.Key()
+		switch {
+		case k.Code == 'c' && k.Mod&tea.ModCtrl != 0:
 			return *m, tea.Quit
 
-		case "enter":
+		case k.Mod&tea.ModCtrl != 0 && k.Code == 'j':
+			m.textarea.InsertString("\n")
+			return *m, nil
+
+		case k.Code == tea.KeyEnter:
 			content := strings.TrimSpace(m.textarea.Value())
 			if content == "" {
-				m.textarea, _ = m.textarea.Update(msg)
+				m.textarea.InsertString("\n")
 				return *m, nil
 			}
 			m.history = append(m.history, content)
@@ -82,14 +87,14 @@ func (m *InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
 				return inputSentMsg{content: content}
 			}
 
-		case "ctrl+up":
+		case k.Mod&tea.ModCtrl != 0 && k.Code == tea.KeyUp:
 			if m.histIdx > 0 {
 				m.histIdx--
 				m.textarea.SetValue(m.history[m.histIdx])
 			}
 			return *m, nil
 
-		case "ctrl+down":
+		case k.Mod&tea.ModCtrl != 0 && k.Code == tea.KeyDown:
 			if m.histIdx < len(m.history)-1 {
 				m.histIdx++
 				m.textarea.SetValue(m.history[m.histIdx])
@@ -97,10 +102,6 @@ func (m *InputModel) Update(msg tea.Msg) (InputModel, tea.Cmd) {
 				m.histIdx = len(m.history)
 				m.textarea.SetValue("")
 			}
-			return *m, nil
-
-		case "ctrl+enter":
-			m.textarea.InsertString("\n")
 			return *m, nil
 		}
 	}
