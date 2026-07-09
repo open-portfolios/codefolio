@@ -21,7 +21,7 @@ const (
 )
 
 const (
-	fixedOverhead = 2
+	fixedOverhead = 3
 	helpBarH      = 1
 	inputMaxH     = 8
 	minChatH      = 4
@@ -157,6 +157,7 @@ func (m *Model) View() tea.View {
 		header,
 		"",
 		body,
+		"",
 		inputView,
 	))
 	v.AltScreen = true
