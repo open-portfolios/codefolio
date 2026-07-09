@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 	"charm.land/glamour/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -46,6 +47,12 @@ func (c *ChatModel) RebuildAndScroll(allMsgs []ChatMessage) {
 
 func (c *ChatModel) View() string {
 	return c.viewport.View()
+}
+
+func (c *ChatModel) Update(msg tea.Msg) (ChatModel, tea.Cmd) {
+	var cmd tea.Cmd
+	c.viewport, cmd = c.viewport.Update(msg)
+	return *c, cmd
 }
 
 func (c *ChatModel) buildContent(messages []ChatMessage) {

@@ -21,8 +21,9 @@ func NewInputModel(w int) InputModel {
 	ta.Placeholder = "Ask something..."
 	ta.ShowLineNumbers = false
 	ta.CharLimit = 0
-	ta.MaxHeight = 6
+	ta.MaxHeight = 8
 	ta.SetWidth(w)
+	ta.SetHeight(8)
 
 	styles := ta.Styles()
 	styles.Focused.CursorLine = lipgloss.NewStyle()
@@ -40,9 +41,10 @@ func NewInputModel(w int) InputModel {
 	}
 }
 
-func (m *InputModel) SetSize(w int) {
+func (m *InputModel) SetSize(w, h int) {
 	m.width = w
 	m.textarea.SetWidth(w)
+	m.textarea.SetHeight(h)
 }
 
 func (m InputModel) Init() tea.Cmd {

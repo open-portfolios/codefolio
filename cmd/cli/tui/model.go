@@ -20,6 +20,13 @@ const (
 	streamRunning
 )
 
+const (
+	fixedOverhead = 2
+	helpBarH      = 1
+	inputMaxH     = 8
+	minChatH      = 4
+)
+
 type Model struct {
 	width  int
 	height int
@@ -108,6 +115,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.streaming = streamIdle
 		m.chat.Rebuild(m.session.Messages)
 		return m, nil
+
+	case tea.MouseWheelMsg:
+		var cmd tea.Cmd
+		m.chat, cmd = m.chat.Update(msg)
+		return m, cmd
 	}
 
 	var cmd tea.Cmd
@@ -148,6 +160,7 @@ func (m *Model) View() tea.View {
 		inputView,
 	))
 	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }
 
@@ -158,13 +171,11 @@ func (m *Model) updateLayout() {
 	}
 	mainW := m.width - sw
 
-	chatH := m.height - 4
-	if chatH < 4 {
-		chatH = 4
-	}
+	inputH := min(max(m.height-fixedOverhead-helpBarH-minChatH, 1), inputMaxH)
+	chatH := max(m.height-fixedOverhead-inputH-helpBarH, minChatH)
 
 	m.chat.SetSize(mainW, chatH)
-	m.input.SetSize(m.width)
+	m.input.SetSize(m.width, inputH)
 }
 
 func (s *Session) AddSystemMessage(content string) {
