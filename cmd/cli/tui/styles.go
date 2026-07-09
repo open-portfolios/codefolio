@@ -30,4 +30,11 @@ var (
 			BorderLeft(true).
 			BorderStyle(lipgloss.ThickBorder()).
 			BorderForeground(userBarFg)
+
+	thinkingStyle = lipgloss.NewStyle().
+			Foreground(mutedFg).
+			Italic(true)
+
+	thinkingHeaderStyle = lipgloss.NewStyle().
+				Foreground(accent)
 )

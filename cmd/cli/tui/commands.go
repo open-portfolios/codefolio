@@ -9,8 +9,10 @@ import (
 )
 
 type streamDeltaMsg string
+type streamThinkingMsg string
 type streamDoneMsg struct{}
 type streamErrMsg struct{ Err error }
+type spinnerTickMsg struct{}
 
 func StreamLLM(p *tea.Program, driver llm.Driver, messages []llm.Message, model string) tea.Cmd {
 	return func() tea.Msg {
@@ -26,15 +28,18 @@ func StreamLLM(p *tea.Program, driver llm.Driver, messages []llm.Message, model 
 						return
 					}
 
-					var msgDelta llm.MessageDelta
-					if err := delta.Accept(&collector{delta: &msgDelta}); err != nil {
+					c := &collector{}
+					if err := delta.Accept(c); err != nil {
 						p.Send(streamErrMsg{Err: err})
 						return
 					}
-
-					if msgDelta.Content != "" {
-						p.Send(streamDeltaMsg(msgDelta.Content))
+					if c.thinking != "" {
+						p.Send(streamThinkingMsg(c.thinking))
 					}
+					if c.message != "" {
+						p.Send(streamDeltaMsg(c.message))
+					}
+
 				case err, ok := <-errCh:
 					if ok && err != nil {
 						p.Send(streamErrMsg{Err: err})
@@ -50,10 +55,16 @@ func StreamLLM(p *tea.Program, driver llm.Driver, messages []llm.Message, model 
 
 type collector struct {
 	llm.BaseDeltaVisitor
-	delta *llm.MessageDelta
+	message  string
+	thinking string
 }
 
 func (c *collector) VisitMessage(d llm.MessageDelta) error {
-	*c.delta = d
+	c.message = d.Content
+	return nil
+}
+
+func (c *collector) VisitThinking(d llm.ThinkingDelta) error {
+	c.thinking = d.Content
 	return nil
 }

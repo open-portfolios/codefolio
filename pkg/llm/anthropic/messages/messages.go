@@ -60,13 +60,24 @@ func (d *Driver) Stream(ctx context.Context, messages []llm.Message, options ...
 			event := stream.Current()
 			switch e := event.AsAny().(type) {
 			case anthropic.ContentBlockDeltaEvent:
-				m := llm.MessageDelta{
-					Role:    llm.RoleAssistant,
-					Content: e.Delta.Text,
-				}
-				if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, m); err != nil {
-					errChan <- err
-					return
+				switch delta := e.Delta.AsAny().(type) {
+				case anthropic.TextDelta:
+					m := llm.MessageDelta{
+						Role:    llm.RoleAssistant,
+						Content: delta.Text,
+					}
+					if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, m); err != nil {
+						errChan <- err
+						return
+					}
+				case anthropic.ThinkingDelta:
+					t := llm.ThinkingDelta{
+						Content: delta.Thinking,
+					}
+					if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, t); err != nil {
+						errChan <- err
+						return
+					}
 				}
 			case anthropic.MessageDeltaEvent:
 				u := llm.UsageDelta{

@@ -7,13 +7,23 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/glamour/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/open-portfolios/codefolio/internal/domain"
 )
 
+type thinkingRegion struct {
+	msgIndex      int
+	collapserLine int
+}
+
 type ChatModel struct {
-	viewport viewport.Model
-	renderer *glamour.TermRenderer
-	width    int
-	height   int
+	viewport        viewport.Model
+	renderer        *glamour.TermRenderer
+	width           int
+	height          int
+	screenY         int
+	spinnerFrame    int
+	thinkingRegions []thinkingRegion
 }
 
 func NewChatModel(w, h int) ChatModel {
@@ -36,11 +46,32 @@ func (c *ChatModel) SetSize(w, h int) {
 	c.renderer = nil
 }
 
-func (c *ChatModel) Rebuild(allMsgs []ChatMessage) {
+func (c *ChatModel) SetScreenY(y int) {
+	c.screenY = y
+}
+
+func (c *ChatModel) SetSpinnerFrame(f int) {
+	c.spinnerFrame = f
+}
+
+func (c *ChatModel) ScreenY() int              { return c.screenY }
+func (c *ChatModel) YOffset() int              { return c.viewport.YOffset() }
+func (c *ChatModel) VisibleLineCount() int     { return c.viewport.VisibleLineCount() }
+
+func (c *ChatModel) ThinkingLineToMsg(line int) (int, bool) {
+	for _, r := range c.thinkingRegions {
+		if r.collapserLine == line {
+			return r.msgIndex, true
+		}
+	}
+	return 0, false
+}
+
+func (c *ChatModel) Rebuild(allMsgs []domain.ChatMessage) {
 	c.buildContent(allMsgs)
 }
 
-func (c *ChatModel) RebuildAndScroll(allMsgs []ChatMessage) {
+func (c *ChatModel) RebuildAndScroll(allMsgs []domain.ChatMessage) {
 	c.buildContent(allMsgs)
 	c.viewport.GotoBottom()
 }
@@ -55,11 +86,13 @@ func (c *ChatModel) Update(msg tea.Msg) (ChatModel, tea.Cmd) {
 	return *c, cmd
 }
 
-func (c *ChatModel) buildContent(messages []ChatMessage) {
+func (c *ChatModel) buildContent(messages []domain.ChatMessage) {
 	var sb strings.Builder
+	c.thinkingRegions = c.thinkingRegions[:0]
 	w := max(20, c.width-2)
+	line := 0
 
-	for _, msg := range messages {
+	for msgIdx, msg := range messages {
 		switch msg.Role {
 		case "system":
 			continue
@@ -69,16 +102,43 @@ func (c *ChatModel) buildContent(messages []ChatMessage) {
 			row := lipgloss.JoinHorizontal(lipgloss.Top, bar, lipgloss.NewStyle().Width(w-1).Render(body))
 			sb.WriteString(row)
 			sb.WriteString("\n")
+			line++
 		case "assistant":
+			if msg.Thinking != "" {
+				sb.WriteString("\n")
+				line++
+
+				c.thinkingRegions = append(c.thinkingRegions, thinkingRegion{
+					msgIndex:      msgIdx,
+					collapserLine: line,
+				})
+
+				spinning := msg.Streaming && msg.Content == ""
+				sb.WriteString(c.thinkingHeader(msg.ThinkingExpanded, spinning))
+				sb.WriteString("\n")
+				line++
+
+				if msg.ThinkingExpanded {
+					wrapW := max(20, c.width-4)
+					for _, tline := range strings.Split(msg.Thinking, "\n") {
+						lineWrapped := lipgloss.NewStyle().Width(wrapW).MaxWidth(wrapW).PaddingLeft(2).Render(tline)
+						sb.WriteString(thinkingStyle.Render(lineWrapped))
+						sb.WriteString("\n")
+						line++
+					}
+				}
+			}
 			body := msg.Content
 			if body != "" {
 				body = c.renderMarkdown(body)
 			}
 			sb.WriteString(body)
 			sb.WriteString("\n")
+			line += strings.Count(body, "\n") + 1
 		default:
 			sb.WriteString(lipgloss.NewStyle().Foreground(mutedFg).Render(msg.Content))
 			sb.WriteString("\n")
+			line++
 		}
 	}
 
@@ -101,4 +161,14 @@ func (c *ChatModel) renderMarkdown(content string) string {
 		return content
 	}
 	return rendered
+}
+
+func (c *ChatModel) thinkingHeader(expanded, spinning bool) string {
+	content := "+ Thinking"
+	if spinning {
+		content = spinnerFrames[c.spinnerFrame%len(spinnerFrames)] + " Thinking"
+	} else if expanded {
+		content = "- Thinking"
+	}
+	return lipgloss.NewStyle().PaddingLeft(2).Render(thinkingHeaderStyle.Render(content))
 }

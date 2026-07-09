@@ -1,4 +1,4 @@
-package tui
+package domain
 
 import (
 	"time"
@@ -7,11 +7,13 @@ import (
 )
 
 type ChatMessage struct {
-	ID        string
-	Role      string
-	Content   string
-	Timestamp time.Time
-	Streaming bool
+	ID               string
+	Role             string
+	Content          string
+	Thinking         string
+	ThinkingExpanded bool
+	Timestamp        time.Time
+	Streaming        bool
 }
 
 func (m ChatMessage) ToLLMMessage() llm.Message {
@@ -34,6 +36,17 @@ func NewSession() *Session {
 		Messages:  make([]ChatMessage, 0),
 		CreatedAt: time.Now(),
 	}
+}
+
+func (s *Session) AddSystemMessage(content string) {
+	s.msgSeq++
+	msg := ChatMessage{
+		ID:        sysMsgID(s.msgSeq),
+		Role:      "system",
+		Content:   content,
+		Timestamp: time.Now(),
+	}
+	s.Messages = append(s.Messages, msg)
 }
 
 func (s *Session) AddUserMessage(content string) {
@@ -66,6 +79,16 @@ func (s *Session) AppendDelta(content string) {
 	last := &s.Messages[len(s.Messages)-1]
 	if last.Streaming {
 		last.Content += content
+	}
+}
+
+func (s *Session) AppendThinkingDelta(content string) {
+	if len(s.Messages) == 0 {
+		return
+	}
+	last := &s.Messages[len(s.Messages)-1]
+	if last.Streaming {
+		last.Thinking += content
 	}
 }
 
@@ -109,6 +132,7 @@ func (s *Session) ToLLMMessages() []llm.Message {
 
 func userMsgID(seq int) string   { return "u-" + itoa(seq) }
 func asstMsgID(seq int) string   { return "a-" + itoa(seq) }
+func sysMsgID(seq int) string    { return "s-" + itoa(seq) }
 
 func itoa(n int) string {
 	if n < 10 {

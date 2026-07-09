@@ -9,6 +9,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.5
 	github.com/anthropics/anthropic-sdk-go v1.52.0
 	github.com/go-playground/validator/v10 v10.30.3
+	github.com/google/wire v0.7.0
 	github.com/joho/godotenv v1.5.1
 	github.com/openai/openai-go/v3 v3.41.0
 	github.com/wailsapp/wails/v2 v2.12.0

@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
 	tea "charm.land/bubbletea/v2"
 	dotenv "github.com/joho/godotenv"
 
-	"github.com/open-portfolios/codefolio/cmd/cli/tui"
 	"github.com/open-portfolios/codefolio/internal/conf"
-	"github.com/open-portfolios/codefolio/pkg/llm/anthropic/messages"
 )
 
 func init() {
@@ -27,13 +23,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := anthropic.NewClient(
-		option.WithBaseURL(cfg.BaseURL),
-		option.WithAPIKey(cfg.APIKey),
-	)
-	driver := messages.NewDriver(&client)
-
-	model := tui.NewModel(cfg, driver)
+	model, cleanup, err := InitModel(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "init error: %v\n", err)
+		os.Exit(1)
+	}
+	if cleanup != nil {
+		defer cleanup()
+	}
 
 	p := tea.NewProgram(model)
 	model.Program = p

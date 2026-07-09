@@ -10,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/open-portfolios/codefolio/internal/conf"
+	"github.com/open-portfolios/codefolio/internal/domain"
 	"github.com/open-portfolios/codefolio/pkg/llm"
 )
 
@@ -27,6 +28,8 @@ const (
 	minChatH      = 4
 )
 
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
 type Model struct {
 	width  int
 	height int
@@ -34,22 +37,20 @@ type Model struct {
 	chat  ChatModel
 	input InputModel
 
-	session *Session
+	session *domain.Session
 
 	driver  llm.Driver
 	cfg     *conf.Global
 	Program *tea.Program
 
-	streaming streamingState
-	quitting  bool
+	streaming    streamingState
+	spinnerFrame int
+	quitting     bool
 }
 
-func NewModel(cfg *conf.Global, driver llm.Driver) *Model {
+func NewModel(cfg *conf.Global, driver llm.Driver, session *domain.Session) *Model {
 	w := 80
 	h := 24
-
-	session := NewSession()
-	session.AddSystemMessage("you're a helpful assistant")
 
 	return &Model{
 		cfg:     cfg,
@@ -63,7 +64,10 @@ func NewModel(cfg *conf.Global, driver llm.Driver) *Model {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return m.input.Init()
+	return tea.Batch(m.input.Init(), func() tea.Msg {
+		time.Sleep(80 * time.Millisecond)
+		return spinnerTickMsg{}
+	})
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -101,6 +105,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.chat.RebuildAndScroll(m.session.Messages)
 		return m, nil
 
+	case streamThinkingMsg:
+		m.session.AppendThinkingDelta(string(msg))
+		m.chat.RebuildAndScroll(m.session.Messages)
+		return m, nil
+
 	case streamDoneMsg:
 		m.session.FinishAssistantMessage()
 		m.streaming = streamIdle
@@ -116,10 +125,27 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.chat.Rebuild(m.session.Messages)
 		return m, nil
 
+	case spinnerTickMsg:
+		m.spinnerFrame = (m.spinnerFrame + 1) % len(spinnerFrames)
+		if m.streaming == streamRunning {
+			m.chat.SetSpinnerFrame(m.spinnerFrame)
+			m.chat.Rebuild(m.session.Messages)
+		}
+		return m, func() tea.Msg {
+			time.Sleep(80 * time.Millisecond)
+			return spinnerTickMsg{}
+		}
+
 	case tea.MouseWheelMsg:
 		var cmd tea.Cmd
 		m.chat, cmd = m.chat.Update(msg)
 		return m, cmd
+
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft {
+			m.handleChatClick(msg.X, msg.Y)
+		}
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -153,6 +179,8 @@ func (m *Model) View() tea.View {
 		body = chatView
 	}
 
+	m.chat.SetScreenY(2)
+
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		"",
@@ -163,6 +191,32 @@ func (m *Model) View() tea.View {
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
+}
+
+func (m *Model) handleChatClick(mx, my int) {
+	hasSidebar := m.width >= 120
+	if hasSidebar {
+		chatW := m.width - 30
+		if mx >= chatW {
+			return
+		}
+	}
+
+	localY := my - m.chat.ScreenY()
+	if localY < 0 || localY >= m.chat.VisibleLineCount() {
+		return
+	}
+
+	contentLine := localY + m.chat.YOffset()
+	msgIdx, ok := m.chat.ThinkingLineToMsg(contentLine)
+	if !ok {
+		return
+	}
+
+	if msgIdx < len(m.session.Messages) {
+		m.session.Messages[msgIdx].ThinkingExpanded = !m.session.Messages[msgIdx].ThinkingExpanded
+		m.chat.Rebuild(m.session.Messages)
+	}
 }
 
 func (m *Model) updateLayout() {
@@ -178,16 +232,3 @@ func (m *Model) updateLayout() {
 	m.chat.SetSize(mainW, chatH)
 	m.input.SetSize(m.width, inputH)
 }
-
-func (s *Session) AddSystemMessage(content string) {
-	s.msgSeq++
-	msg := ChatMessage{
-		ID:        sysMsgID(s.msgSeq),
-		Role:      "system",
-		Content:   content,
-		Timestamp: time.Now(),
-	}
-	s.Messages = append(s.Messages, msg)
-}
-
-func sysMsgID(seq int) string { return "s-" + itoa(seq) }

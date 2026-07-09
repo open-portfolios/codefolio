@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/open-portfolios/codefolio/pkg/llm"
@@ -72,7 +73,16 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 		for stream.Next() {
 			event := stream.Current()
 
-			// send message delta
+			if reasoning := extractReasoning(event); reasoning != "" {
+				t := llm.ThinkingDelta{
+					Content: reasoning,
+				}
+				if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, t); err != nil {
+					errChan <- err
+					return
+				}
+			}
+
 			m := llm.MessageDelta{
 				Role:    event.Choices[0].Delta.Role,
 				Content: event.Choices[0].Delta.Content,
@@ -82,7 +92,6 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 				return
 			}
 
-			// send usage delta
 			u := llm.UsageDelta{
 				TotalTokens: uint64(event.Usage.TotalTokens),
 			}
@@ -97,4 +106,18 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 		}
 	}()
 	return deltaChan, errChan
+}
+
+func extractReasoning(chunk openai.ChatCompletionChunk) string {
+	for _, choice := range chunk.Choices {
+		rc := choice.Delta.JSON.ExtraFields["reasoning_content"]
+		if !rc.Valid() {
+			continue
+		}
+		var v string
+		if err := json.Unmarshal([]byte(rc.Raw()), &v); err == nil {
+			return v
+		}
+	}
+	return ""
 }
