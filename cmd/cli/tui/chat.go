@@ -57,6 +57,7 @@ func (c *ChatModel) SetSpinnerFrame(f int) {
 func (c *ChatModel) ScreenY() int              { return c.screenY }
 func (c *ChatModel) YOffset() int              { return c.viewport.YOffset() }
 func (c *ChatModel) VisibleLineCount() int     { return c.viewport.VisibleLineCount() }
+func (c *ChatModel) AtBottom() bool            { return c.viewport.AtBottom() }
 
 func (c *ChatModel) ThinkingLineToMsg(line int) (int, bool) {
 	for _, r := range c.thinkingRegions {
@@ -102,7 +103,7 @@ func (c *ChatModel) buildContent(messages []domain.ChatMessage) {
 			row := lipgloss.JoinHorizontal(lipgloss.Top, bar, lipgloss.NewStyle().Width(w-1).Render(body))
 			sb.WriteString(row)
 			sb.WriteString("\n")
-			line++
+			line += strings.Count(row, "\n") + 1
 		case "assistant":
 			if msg.Thinking != "" {
 				sb.WriteString("\n")
@@ -122,9 +123,10 @@ func (c *ChatModel) buildContent(messages []domain.ChatMessage) {
 					wrapW := max(20, c.width-4)
 					for _, tline := range strings.Split(msg.Thinking, "\n") {
 						lineWrapped := lipgloss.NewStyle().Width(wrapW).MaxWidth(wrapW).PaddingLeft(2).Render(tline)
-						sb.WriteString(thinkingStyle.Render(lineWrapped))
+						wrapped := thinkingStyle.Render(lineWrapped)
+						sb.WriteString(wrapped)
 						sb.WriteString("\n")
-						line++
+						line += strings.Count(wrapped, "\n") + 1
 					}
 				}
 			}
@@ -136,9 +138,10 @@ func (c *ChatModel) buildContent(messages []domain.ChatMessage) {
 			sb.WriteString("\n")
 			line += strings.Count(body, "\n") + 1
 		default:
-			sb.WriteString(lipgloss.NewStyle().Foreground(mutedFg).Render(msg.Content))
+			content := lipgloss.NewStyle().Foreground(mutedFg).Render(msg.Content)
+			sb.WriteString(content)
 			sb.WriteString("\n")
-			line++
+			line += strings.Count(content, "\n") + 1
 		}
 	}
 

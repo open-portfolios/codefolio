@@ -97,17 +97,27 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.session.AddUserMessage(content)
 		m.session.StartAssistantMessage()
 		m.streaming = streamRunning
-		m.chat.Rebuild(m.session.Messages)
+		m.chat.RebuildAndScroll(m.session.Messages)
 		return m, StreamLLM(m.Program, m.driver, m.session.ToLLMMessages(), m.cfg.Model)
 
 	case streamDeltaMsg:
+		wasAtBottom := m.chat.AtBottom()
 		m.session.AppendDelta(string(msg))
-		m.chat.RebuildAndScroll(m.session.Messages)
+		if wasAtBottom {
+			m.chat.RebuildAndScroll(m.session.Messages)
+		} else {
+			m.chat.Rebuild(m.session.Messages)
+		}
 		return m, nil
 
 	case streamThinkingMsg:
+		wasAtBottom := m.chat.AtBottom()
 		m.session.AppendThinkingDelta(string(msg))
-		m.chat.RebuildAndScroll(m.session.Messages)
+		if wasAtBottom {
+			m.chat.RebuildAndScroll(m.session.Messages)
+		} else {
+			m.chat.Rebuild(m.session.Messages)
+		}
 		return m, nil
 
 	case streamDoneMsg:
