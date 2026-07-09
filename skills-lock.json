@@ -19,6 +19,12 @@
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
       "computedHash": "65da9ce611a203fc6b9ecf95254cf845857243d958cb0d64df556cad87c76312"
     },
+    "golang-google-wire": {
+      "source": "samber/cc-skills-golang",
+      "sourceType": "github",
+      "skillPath": "skills/golang-google-wire/SKILL.md",
+      "computedHash": "390643a94c6049d2f2edb558173cae60c6be903a25c1d2b81ca3bd217f59ff1f"
+    },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
