@@ -14,9 +14,8 @@ type streamDoneMsg struct{}
 type streamErrMsg struct{ Err error }
 type spinnerTickMsg struct{}
 
-func StreamLLM(p *tea.Program, driver llm.Driver, messages []llm.Message, model string) tea.Cmd {
+func StreamLLM(ctx context.Context, p *tea.Program, driver llm.Driver, messages []llm.Message, model string) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
 		deltaCh, errCh := driver.Stream(ctx, messages, llm.WithModel(model))
 
 		go func() {

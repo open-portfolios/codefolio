@@ -37,4 +37,9 @@ var (
 
 	thinkingHeaderStyle = lipgloss.NewStyle().
 				Foreground(accent)
+
+	errorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#EF4444")).
+			Bold(true).
+			PaddingLeft(2)
 )

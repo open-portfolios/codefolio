@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -46,6 +46,7 @@ type Model struct {
 	streaming    streamingState
 	spinnerFrame int
 	quitting     bool
+	cancelStream context.CancelFunc
 }
 
 func NewModel(cfg *conf.Global, driver llm.Driver, session *domain.Session) *Model {
@@ -84,6 +85,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if m.streaming == streamRunning {
 			if msg.String() == "esc" {
+				if m.cancelStream != nil {
+					m.cancelStream()
+					m.cancelStream = nil
+				}
+				m.session.FinishAssistantMessage()
+				if last := m.session.LastMessage(); last != nil {
+					last.Error = "interrupted"
+				}
+				m.streaming = streamIdle
+				m.chat.Rebuild(m.session.Messages)
 				return m, nil
 			}
 			return m, nil
@@ -98,7 +109,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.session.StartAssistantMessage()
 		m.streaming = streamRunning
 		m.chat.RebuildAndScroll(m.session.Messages)
-		return m, StreamLLM(m.Program, m.driver, m.session.ToLLMMessages(), m.cfg.Model)
+		ctx, cancel := context.WithCancel(context.Background())
+		m.cancelStream = cancel
+		return m, StreamLLM(ctx, m.Program, m.driver, m.session.ToLLMMessages(), m.cfg.Model)
 
 	case streamDeltaMsg:
 		wasAtBottom := m.chat.AtBottom()
@@ -121,15 +134,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case streamDoneMsg:
+		if m.streaming != streamRunning {
+			return m, nil
+		}
 		m.session.FinishAssistantMessage()
 		m.streaming = streamIdle
 		m.chat.RebuildAndScroll(m.session.Messages)
 		return m, nil
 
 	case streamErrMsg:
+		if m.streaming != streamRunning {
+			return m, nil
+		}
 		m.session.FinishAssistantMessage()
 		if last := m.session.LastMessage(); last != nil {
-			last.Content = fmt.Sprintf("Error: %s", msg.Err.Error())
+			last.Error = msg.Err.Error()
 		}
 		m.streaming = streamIdle
 		m.chat.Rebuild(m.session.Messages)

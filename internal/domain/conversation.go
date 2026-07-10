@@ -14,6 +14,7 @@ type ChatMessage struct {
 	ThinkingExpanded bool
 	Timestamp        time.Time
 	Streaming        bool
+	Error            string
 }
 
 func (m ChatMessage) ToLLMMessage() llm.Message {

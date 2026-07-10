@@ -54,7 +54,7 @@ func (m InputModel) Init() tea.Cmd {
 func (m InputModel) View() string {
 	inputView := m.textarea.View()
 
-	helpText := "enter · send  |  ctrl+enter · newline  |  ctrl+↑↓ · history  |  ctrl+c · quit"
+	helpText := "enter · send  |  ctrl+enter · newline  |  esc · cancel  |  ctrl+↑↓ · history  |  ctrl+c · quit"
 	help := helpBarStyle.Render(helpText)
 
 	return lipgloss.JoinVertical(lipgloss.Left, inputView, help)
