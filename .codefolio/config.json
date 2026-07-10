@@ -1,6 +1,6 @@
 {
-    "protocol": "anthropic",
-    "baseUrl": "https://api.deepseek.com/anthropic",
+    "protocol": "openai",
+    "baseUrl": "https://api.deepseek.com",
     "model": "deepseek-v4-pro",
     "apiKey": "${DEEPSEEK_API_KEY}"
 }

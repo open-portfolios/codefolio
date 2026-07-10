@@ -53,13 +53,16 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 							},
 						})
 					}
+					assistant := &openai.ChatCompletionAssistantMessageParam{
+						ToolCalls: tcs,
+					}
+					if msg.Content() != "" {
+						assistant.Content = openai.ChatCompletionAssistantMessageParamContentUnion{
+							OfString: param.NewOpt(msg.Content()),
+						}
+					}
 					msgs = append(msgs, openai.ChatCompletionMessageParamUnion{
-						OfAssistant: &openai.ChatCompletionAssistantMessageParam{
-							Content: openai.ChatCompletionAssistantMessageParamContentUnion{
-								OfString: param.NewOpt(msg.Content()),
-							},
-							ToolCalls: tcs,
-						},
+						OfAssistant: assistant,
 					})
 				} else {
 					msgs = append(msgs, openai.AssistantMessage(msg.Content()))
@@ -134,14 +137,16 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 			}
 
 			for _, tc := range event.Choices[0].Delta.ToolCalls {
-				start := llm.ToolCallStartDelta{
-					Index: int(tc.Index),
-					ID:    tc.ID,
-					Name:  tc.Function.Name,
-				}
-				if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, start); err != nil {
-					errChan <- err
-					return
+				if tc.ID != "" {
+					start := llm.ToolCallStartDelta{
+						Index: int(tc.Index),
+						ID:    tc.ID,
+						Name:  tc.Function.Name,
+					}
+					if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, start); err != nil {
+						errChan <- err
+						return
+					}
 				}
 				if tc.Function.Arguments != "" {
 					input := llm.ToolCallInputDelta{
