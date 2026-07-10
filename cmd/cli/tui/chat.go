@@ -138,13 +138,17 @@ func (c *ChatModel) buildContent(messages []domain.ChatMessage) {
 			sb.WriteString("\n")
 			line += strings.Count(body, "\n") + 1
 			if msg.Error != "" {
-				errorText := errorStyle.Render("Error: " + msg.Error)
-				sb.WriteString(errorText)
+				e := errorStyle.Width(w).Render("Error: " + msg.Error)
+				sb.WriteString(e)
 				sb.WriteString("\n")
-				line++
+				line += strings.Count(e, "\n") + 1
 			}
 		default:
-			content := lipgloss.NewStyle().Foreground(mutedFg).Render(msg.Content)
+			content := lipgloss.NewStyle().
+				Foreground(mutedFg).
+				PaddingLeft(2).
+				MaxWidth(w).
+				Render(msg.Content)
 			sb.WriteString(content)
 			sb.WriteString("\n")
 			line += strings.Count(content, "\n") + 1

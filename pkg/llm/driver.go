@@ -10,6 +10,7 @@ type StreamConf struct {
 	Model        string
 	ChanCapacity int
 	MaxTokens    int64
+	Tools        []map[string]any
 }
 
 func CollectStreamOptions(options ...StreamOption) *StreamConf {
@@ -35,4 +36,8 @@ func WithChanCapacity(capacity int) StreamOption {
 
 func WithMaxTokens(tokens int64) StreamOption {
 	return func(s *StreamConf) { s.MaxTokens = tokens }
+}
+
+func WithTools(tools []map[string]any) StreamOption {
+	return func(s *StreamConf) { s.Tools = tools }
 }

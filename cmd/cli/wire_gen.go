@@ -11,6 +11,9 @@ import (
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
 	"github.com/open-portfolios/codefolio/internal/infra/llm"
+	"github.com/open-portfolios/codefolio/internal/infra/tools"
+	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
+	"github.com/open-portfolios/codefolio/internal/svc"
 )
 
 // Injectors from wire.go:
@@ -20,8 +23,23 @@ func InitModel(cfg *conf.Global) (*tui.Model, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	string2 := provideProtocol(cfg)
+	agent := svc.NewAgent(string2)
 	session := domain.NewSession()
-	model := tui.NewModel(cfg, driver, session)
+	v := askUserChannel()
+	defaultTools := tools.CreateDefaultTools(v, string2)
+	registry := tools.ProvideRegistry(defaultTools)
+	model := tui.NewModel(cfg, driver, agent, session, registry, v)
 	return model, func() {
 	}, nil
+}
+
+// wire.go:
+
+func provideProtocol(cfg *conf.Global) string {
+	return cfg.Protocol
+}
+
+func askUserChannel() chan askuser.Request {
+	return make(chan askuser.Request, 1)
 }

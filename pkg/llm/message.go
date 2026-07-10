@@ -32,3 +32,22 @@ type FunctionMessage interface {
 
 	Name() string
 }
+
+type ToolCallInfo struct {
+	ID    string
+	Name  string
+	Input string
+}
+
+type MessageWithToolCalls interface {
+	Message
+
+	ToolCalls() []ToolCallInfo
+}
+
+type MessageWithThinking interface {
+	Message
+
+	Thinking() string
+	ThinkingSignature() string
+}

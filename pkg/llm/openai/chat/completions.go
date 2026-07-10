@@ -8,6 +8,7 @@ import (
 	"github.com/open-portfolios/codefolio/pkg/llm"
 	"github.com/open-portfolios/codefolio/pkg/stdx"
 	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/packages/param"
 )
 
 var (
@@ -30,8 +31,8 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 	deltaChan := make(chan llm.Delta, conf.ChanCapacity)
 	errChan := make(chan error, 1)
 	go func() {
-		defer close(errChan)
 		defer close(deltaChan)
+		defer close(errChan)
 
 		msgs := make([]openai.ChatCompletionMessageParamUnion, 0)
 		for _, msg := range messages {
@@ -39,7 +40,30 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 			case llm.RoleUser:
 				msgs = append(msgs, openai.UserMessage(msg.Content()))
 			case llm.RoleAssistant:
-				msgs = append(msgs, openai.AssistantMessage(msg.Content()))
+				if mc, ok := msg.(llm.MessageWithToolCalls); ok && len(mc.ToolCalls()) > 0 {
+					var tcs []openai.ChatCompletionMessageToolCallUnionParam
+					for _, tc := range mc.ToolCalls() {
+						tcs = append(tcs, openai.ChatCompletionMessageToolCallUnionParam{
+							OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
+								ID: tc.ID,
+								Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
+									Name:      tc.Name,
+									Arguments: tc.Input,
+								},
+							},
+						})
+					}
+					msgs = append(msgs, openai.ChatCompletionMessageParamUnion{
+						OfAssistant: &openai.ChatCompletionAssistantMessageParam{
+							Content: openai.ChatCompletionAssistantMessageParamContentUnion{
+								OfString: param.NewOpt(msg.Content()),
+							},
+							ToolCalls: tcs,
+						},
+					})
+				} else {
+					msgs = append(msgs, openai.AssistantMessage(msg.Content()))
+				}
 			case llm.RoleDeveloper:
 				msgs = append(msgs, openai.DeveloperMessage(msg.Content()))
 			case llm.RoleSystem:
@@ -64,9 +88,26 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 			}
 		}
 
+		tools := make([]openai.ChatCompletionToolUnionParam, 0, len(conf.Tools))
+		for _, schema := range conf.Tools {
+			name, _ := schema["name"].(string)
+			desc, _ := schema["description"].(string)
+			params, _ := schema["input_schema"].(map[string]any)
+			tools = append(tools, openai.ChatCompletionToolUnionParam{
+				OfFunction: &openai.ChatCompletionFunctionToolParam{
+					Function: openai.FunctionDefinitionParam{
+						Name:        name,
+						Description: param.NewOpt(desc),
+						Parameters:  openai.FunctionParameters(params),
+					},
+				},
+			})
+		}
+
 		stream := c.client.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
 			Model:    conf.Model,
 			Messages: msgs,
+			Tools:    tools,
 		})
 		defer stream.Close()
 
@@ -92,6 +133,28 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 				return
 			}
 
+			for _, tc := range event.Choices[0].Delta.ToolCalls {
+				start := llm.ToolCallStartDelta{
+					Index: int(tc.Index),
+					ID:    tc.ID,
+					Name:  tc.Function.Name,
+				}
+				if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, start); err != nil {
+					errChan <- err
+					return
+				}
+				if tc.Function.Arguments != "" {
+					input := llm.ToolCallInputDelta{
+						Index: int(tc.Index),
+						Input: tc.Function.Arguments,
+					}
+					if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, input); err != nil {
+						errChan <- err
+						return
+					}
+				}
+			}
+
 			u := llm.UsageDelta{
 				TotalTokens: uint64(event.Usage.TotalTokens),
 			}
@@ -99,9 +162,23 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 				errChan <- err
 				return
 			}
+
+			if event.Choices[0].FinishReason != "" {
+				stopReason := "end_turn"
+				if event.Choices[0].FinishReason == "tool_calls" {
+					stopReason = "tool_use"
+				}
+				ss := llm.StreamStopDelta{
+					StopReason: stopReason,
+				}
+				if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, ss); err != nil {
+					errChan <- err
+					return
+				}
+			}
 		}
 		if err := stream.Err(); err != nil {
-			errChan <- err
+			errChan <- fmt.Errorf("openai stream error: %w", err)
 			return
 		}
 	}()
