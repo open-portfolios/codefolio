@@ -100,7 +100,7 @@ func (d *Driver) Stream(ctx context.Context, messages []llm.Message, options ...
 				if r, ok := inputSchema["required"]; ok {
 					if rs, ok := r.([]string); ok {
 						required = rs
-					} else if rs, ok := r.([]interface{}); ok {
+					} else if rs, ok := r.([]any); ok {
 						for _, item := range rs {
 							if s, ok := item.(string); ok {
 								required = append(required, s)

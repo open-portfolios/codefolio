@@ -121,7 +121,7 @@ func (c *ChatModel) buildContent(messages []domain.ChatMessage) {
 
 				if msg.ThinkingExpanded {
 					wrapW := max(20, c.width-4)
-					for _, tline := range strings.Split(msg.Thinking, "\n") {
+					for tline := range strings.SplitSeq(msg.Thinking, "\n") {
 						lineWrapped := lipgloss.NewStyle().Width(wrapW).MaxWidth(wrapW).PaddingLeft(2).Render(tline)
 						wrapped := thinkingStyle.Render(lineWrapped)
 						sb.WriteString(wrapped)

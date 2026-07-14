@@ -40,10 +40,7 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) domain.ToolResu
 		return domain.ToolResult{Output: "Error: command is required", IsError: true}
 	}
 
-	timeout := shared.IntArg(args, "timeout", 120)
-	if timeout > maxTimeout {
-		timeout = maxTimeout
-	}
+	timeout := min(shared.IntArg(args, "timeout", 120), maxTimeout)
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()

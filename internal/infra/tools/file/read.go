@@ -63,10 +63,7 @@ func (t *Reader) Execute(_ context.Context, args map[string]any) domain.ToolResu
 	if offset >= len(lines) {
 		return domain.ToolResult{Output: ""}
 	}
-	end := offset + limit
-	if end > len(lines) {
-		end = len(lines)
-	}
+	end := min(offset+limit, len(lines))
 	selected := lines[offset:end]
 
 	if t.StateCache != nil {

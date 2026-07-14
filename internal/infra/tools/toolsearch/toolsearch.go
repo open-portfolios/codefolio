@@ -74,8 +74,8 @@ func (t *ToolSearch) Execute(_ context.Context, args map[string]any) domain.Tool
 
 	var schemas []map[string]any
 
-	if strings.HasPrefix(query, "select:") {
-		names := strings.Split(strings.TrimPrefix(query, "select:"), ",")
+	if after, ok := strings.CutPrefix(query, "select:"); ok {
+		names := strings.Split(after, ",")
 		for i := range names {
 			names[i] = strings.TrimSpace(names[i])
 		}
