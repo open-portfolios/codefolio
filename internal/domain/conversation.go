@@ -7,9 +7,9 @@ import (
 )
 
 type ToolCall struct {
-	ID     string
-	Name   string
-	Input  string
+	ID    string
+	Name  string
+	Input string
 }
 
 type ChatMessage struct {
@@ -181,10 +181,10 @@ func (s *Session) ToLLMMessages() []llm.Message {
 	return msgs
 }
 
-func userMsgID(seq int) string   { return "u-" + itoa(seq) }
-func asstMsgID(seq int) string   { return "a-" + itoa(seq) }
-func sysMsgID(seq int) string    { return "s-" + itoa(seq) }
-func toolMsgID(seq int) string   { return "t-" + itoa(seq) }
+func userMsgID(seq int) string { return "u-" + itoa(seq) }
+func asstMsgID(seq int) string { return "a-" + itoa(seq) }
+func sysMsgID(seq int) string  { return "s-" + itoa(seq) }
+func toolMsgID(seq int) string { return "t-" + itoa(seq) }
 
 func itoa(n int) string {
 	if n < 10 {

@@ -14,9 +14,9 @@ type Editor struct {
 	StateCache *StateCache
 }
 
-func (t *Editor) Name() string                    { return "EditFile" }
-func (t *Editor) Description() string             { return shared.EditFileDescription }
-func (t *Editor) Category() domain.ToolCategory    { return domain.CategoryWrite }
+func (t *Editor) Name() string                  { return "EditFile" }
+func (t *Editor) Description() string           { return shared.EditFileDescription }
+func (t *Editor) Category() domain.ToolCategory { return domain.CategoryWrite }
 
 func (t *Editor) Schema() map[string]any {
 	return map[string]any{

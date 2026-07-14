@@ -54,10 +54,10 @@ func (c *ChatModel) SetSpinnerFrame(f int) {
 	c.spinnerFrame = f
 }
 
-func (c *ChatModel) ScreenY() int              { return c.screenY }
-func (c *ChatModel) YOffset() int              { return c.viewport.YOffset() }
-func (c *ChatModel) VisibleLineCount() int     { return c.viewport.VisibleLineCount() }
-func (c *ChatModel) AtBottom() bool            { return c.viewport.AtBottom() }
+func (c *ChatModel) ScreenY() int          { return c.screenY }
+func (c *ChatModel) YOffset() int          { return c.viewport.YOffset() }
+func (c *ChatModel) VisibleLineCount() int { return c.viewport.VisibleLineCount() }
+func (c *ChatModel) AtBottom() bool        { return c.viewport.AtBottom() }
 
 func (c *ChatModel) ThinkingLineToMsg(line int) (int, bool) {
 	for _, r := range c.thinkingRegions {

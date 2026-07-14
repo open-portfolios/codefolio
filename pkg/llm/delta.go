@@ -59,12 +59,12 @@ type StreamStopDelta struct {
 }
 
 func (m MessageDelta) Accept(d DeltaVisitor) error        { return d.VisitMessage(m) }
-func (t ThinkingDelta) Accept(d DeltaVisitor) error        { return d.VisitThinking(t) }
-func (ts ThinkingStartDelta) Accept(d DeltaVisitor) error  { return d.VisitThinkingStart(ts) }
-func (u UsageDelta) Accept(d DeltaVisitor) error           { return d.VisitUsage(u) }
-func (tc ToolCallStartDelta) Accept(d DeltaVisitor) error  { return d.VisitToolCallStart(tc) }
-func (ti ToolCallInputDelta) Accept(d DeltaVisitor) error  { return d.VisitToolCallInput(ti) }
-func (ss StreamStopDelta) Accept(d DeltaVisitor) error     { return d.VisitStreamStop(ss) }
+func (t ThinkingDelta) Accept(d DeltaVisitor) error       { return d.VisitThinking(t) }
+func (ts ThinkingStartDelta) Accept(d DeltaVisitor) error { return d.VisitThinkingStart(ts) }
+func (u UsageDelta) Accept(d DeltaVisitor) error          { return d.VisitUsage(u) }
+func (tc ToolCallStartDelta) Accept(d DeltaVisitor) error { return d.VisitToolCallStart(tc) }
+func (ti ToolCallInputDelta) Accept(d DeltaVisitor) error { return d.VisitToolCallInput(ti) }
+func (ss StreamStopDelta) Accept(d DeltaVisitor) error    { return d.VisitStreamStop(ss) }
 
 type BaseDeltaVisitor struct{}
 
@@ -74,4 +74,4 @@ func (BaseDeltaVisitor) VisitThinkingStart(ThinkingStartDelta) error { return ni
 func (BaseDeltaVisitor) VisitUsage(UsageDelta) error                 { return nil }
 func (BaseDeltaVisitor) VisitToolCallStart(ToolCallStartDelta) error { return nil }
 func (BaseDeltaVisitor) VisitToolCallInput(ToolCallInputDelta) error { return nil }
-func (BaseDeltaVisitor) VisitStreamStop(StreamStopDelta) error    { return nil }
+func (BaseDeltaVisitor) VisitStreamStop(StreamStopDelta) error       { return nil }

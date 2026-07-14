@@ -14,9 +14,9 @@ type Reader struct {
 	StateCache *StateCache
 }
 
-func (t *Reader) Name() string                     { return "ReadFile" }
-func (t *Reader) Description() string              { return shared.ReadFileDescription }
-func (t *Reader) Category() domain.ToolCategory     { return domain.CategoryRead }
+func (t *Reader) Name() string                  { return "ReadFile" }
+func (t *Reader) Description() string           { return shared.ReadFileDescription }
+func (t *Reader) Category() domain.ToolCategory { return domain.CategoryRead }
 
 func (t *Reader) Schema() map[string]any {
 	return map[string]any{

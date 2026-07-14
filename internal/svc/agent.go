@@ -21,13 +21,13 @@ type pendingCall struct {
 type EventType string
 
 const (
-	EventDelta          EventType = "delta"
-	EventThinking       EventType = "thinking"
-	EventThinkingStart  EventType = "thinking_start"
-	EventToolStart      EventType = "tool_start"
-	EventToolDone    EventType = "tool_done"
-	EventDone        EventType = "done"
-	EventError       EventType = "error"
+	EventDelta         EventType = "delta"
+	EventThinking      EventType = "thinking"
+	EventThinkingStart EventType = "thinking_start"
+	EventToolStart     EventType = "tool_start"
+	EventToolDone      EventType = "tool_done"
+	EventDone          EventType = "done"
+	EventError         EventType = "error"
 )
 
 type Event struct {

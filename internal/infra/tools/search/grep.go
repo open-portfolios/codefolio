@@ -16,9 +16,9 @@ import (
 
 type Grep struct{}
 
-func (t *Grep) Name() string                   { return "Grep" }
-func (t *Grep) Description() string            { return shared.GrepDescription }
-func (t *Grep) Category() domain.ToolCategory   { return domain.CategoryRead }
+func (t *Grep) Name() string                  { return "Grep" }
+func (t *Grep) Description() string           { return shared.GrepDescription }
+func (t *Grep) Category() domain.ToolCategory { return domain.CategoryRead }
 
 func (t *Grep) Schema() map[string]any {
 	return map[string]any{

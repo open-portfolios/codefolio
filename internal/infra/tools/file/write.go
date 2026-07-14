@@ -14,9 +14,9 @@ type Writer struct {
 	StateCache *StateCache
 }
 
-func (t *Writer) Name() string                    { return "WriteFile" }
-func (t *Writer) Description() string             { return shared.WriteFileDescription }
-func (t *Writer) Category() domain.ToolCategory    { return domain.CategoryWrite }
+func (t *Writer) Name() string                  { return "WriteFile" }
+func (t *Writer) Description() string           { return shared.WriteFileDescription }
+func (t *Writer) Category() domain.ToolCategory { return domain.CategoryWrite }
 
 func (t *Writer) Schema() map[string]any {
 	return map[string]any{

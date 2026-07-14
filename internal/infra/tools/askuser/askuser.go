@@ -36,7 +36,7 @@ type Tool struct {
 
 func (t *Tool) ShouldDefer() bool { return false }
 
-func (t *Tool) Name() string        { return "AskUserQuestion" }
+func (t *Tool) Name() string { return "AskUserQuestion" }
 
 func (t *Tool) Description() string {
 	return `Ask the user a question with structured multiple-choice options. Use this to:

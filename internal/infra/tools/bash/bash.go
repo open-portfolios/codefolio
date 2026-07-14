@@ -15,9 +15,9 @@ const maxTimeout = 600
 
 type Tool struct{}
 
-func (t *Tool) Name() string                   { return "Bash" }
-func (t *Tool) Description() string            { return shared.BashDescription }
-func (t *Tool) Category() domain.ToolCategory   { return domain.CategoryCommand }
+func (t *Tool) Name() string                  { return "Bash" }
+func (t *Tool) Description() string           { return shared.BashDescription }
+func (t *Tool) Category() domain.ToolCategory { return domain.CategoryCommand }
 
 func (t *Tool) Schema() map[string]any {
 	return map[string]any{

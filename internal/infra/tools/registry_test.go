@@ -77,9 +77,9 @@ func TestRegistryGetDeferredToolNames(t *testing.T) {
 
 type stubTool struct{ name string }
 
-func (s *stubTool) Name() string                   { return s.name }
-func (s *stubTool) Description() string            { return "A test tool" }
-func (s *stubTool) Category() domain.ToolCategory          { return domain.CategoryRead }
+func (s *stubTool) Name() string                  { return s.name }
+func (s *stubTool) Description() string           { return "A test tool" }
+func (s *stubTool) Category() domain.ToolCategory { return domain.CategoryRead }
 func (s *stubTool) Schema() map[string]any {
 	return map[string]any{
 		"name":        s.name,

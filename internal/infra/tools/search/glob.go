@@ -14,10 +14,10 @@ import (
 
 type Glob struct{}
 
-func (t *Glob) Name() string                   { return "Glob" }
-func (t *Glob) Description() string            { return shared.GlobDescription }
+func (t *Glob) Name() string        { return "Glob" }
+func (t *Glob) Description() string { return shared.GlobDescription }
 
-func (t *Glob) Category() domain.ToolCategory   { return domain.CategoryRead }
+func (t *Glob) Category() domain.ToolCategory { return domain.CategoryRead }
 func (t *Glob) Schema() map[string]any {
 	return map[string]any{
 		"name":        t.Name(),
