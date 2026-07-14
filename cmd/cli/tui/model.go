@@ -13,6 +13,7 @@ import (
 	"github.com/open-portfolios/codefolio/internal/domain"
 	"github.com/open-portfolios/codefolio/internal/infra/tools"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
+	"github.com/open-portfolios/codefolio/internal/prompt"
 	"github.com/open-portfolios/codefolio/internal/svc"
 	"github.com/open-portfolios/codefolio/pkg/llm"
 )
@@ -72,6 +73,12 @@ type questionRequestMsg struct {
 func NewModel(cfg *conf.Global, driver llm.Driver, agent *svc.Agent, session *domain.Session, registry *tools.Registry, askUserCh chan askuser.Request) *Model {
 	w := 80
 	h := 24
+
+	workDir, _ := os.Getwd()
+	env := prompt.DetectEnvironment(workDir)
+	env.Model = cfg.Model
+	sysPrompt := prompt.BuildSystemPrompt(env, prompt.BuildOptions{Model: cfg.Model})
+	session.AddSystemMessage(sysPrompt)
 
 	return &Model{
 		cfg:              cfg,

@@ -3,13 +3,23 @@ package svc
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/open-portfolios/codefolio/internal/domain"
 	"github.com/open-portfolios/codefolio/internal/infra/tools"
+	"github.com/open-portfolios/codefolio/internal/prompt"
 	"github.com/open-portfolios/codefolio/pkg/llm"
 )
 
 const defaultMaxIterations = 30
+const DefaultPlanFilePath = ".codefolio/plan.md"
+
+type AgentMode int
+
+const (
+	ModeDefault AgentMode = iota
+	ModePlan
+)
 
 type pendingCall struct {
 	id    string
@@ -20,6 +30,7 @@ type pendingCall struct {
 type Agent struct {
 	Protocol      string
 	MaxIterations int
+	Mode          AgentMode
 }
 
 func NewAgent(protocol string) *Agent {
@@ -44,6 +55,12 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 		if iter > maxIter {
 			cb.VisitError(domain.ErrorEvent{Err: fmt.Errorf("max agent iterations (%d) exceeded", maxIter)})
 			return fmt.Errorf("max agent iterations (%d) exceeded", maxIter)
+		}
+
+		if a.Mode == ModePlan {
+			planExists := fileExists(DefaultPlanFilePath)
+			reminder := prompt.BuildPlanModeReminder(DefaultPlanFilePath, planExists, iter)
+			session.AddSystemMessage(reminder)
 		}
 
 		messages := session.ToLLMMessages()
@@ -195,4 +212,9 @@ func (c *agentCollector) VisitToolCallInput(d llm.ToolCallInputDelta) error {
 func (c *agentCollector) VisitStreamStop(d llm.StreamStopDelta) error {
 	c.stopReason = d.StopReason
 	return nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
