@@ -81,7 +81,9 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) domain.ToolResu
 			sb.WriteByte('\n')
 		}
 	}
-	fmt.Fprintf(&sb, "(exit code %d)", exitCode)
+	if exitCode != 0 {
+		fmt.Fprintf(&sb, "(exit code %d)", exitCode)
+	}
 
 	return domain.ToolResult{Output: sb.String(), IsError: isError}
 }

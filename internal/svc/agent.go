@@ -65,7 +65,7 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 					break loop
 				}
 
-				c := &agentCollector{cb: cb, toolCalls: &toolCalls}
+				c := &agentCollector{cb: cb, toolCalls: &toolCalls, session: session}
 				if err := delta.Accept(c); err != nil {
 					cb.VisitError(domain.ErrorEvent{Err: err})
 					return err
@@ -106,19 +106,16 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 		}
 
 		for _, tc := range toolCalls {
-			session.AddToolCallToAssistant(domain.ToolCall{
-				ID:    tc.id,
-				Name:  tc.name,
-				Input: tc.input,
-			})
-		}
-
-		for _, tc := range toolCalls {
-			cb.VisitToolCall(domain.ToolCallEvent{
-				ID:    tc.id,
-				Name:  tc.name,
-				Input: tc.input,
-			})
+			last := session.LastMessage()
+			if last == nil {
+				break
+			}
+			for i := range last.ToolCalls {
+				if last.ToolCalls[i].ID == tc.id {
+					last.ToolCalls[i].Input = tc.input
+					break
+				}
+			}
 		}
 
 		executor := NewExecutor(registry)
@@ -128,7 +125,7 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 
 		results := executor.CollectResults()
 		for _, r := range results {
-			session.AddToolResultMessage(r.ID, r.Output)
+			session.AddToolResultMessage(r.ID, r.Output, r.IsError)
 			cb.VisitToolResult(r)
 		}
 
@@ -141,6 +138,7 @@ type agentCollector struct {
 	llm.BaseDeltaVisitor
 	cb           domain.EventVisitor
 	toolCalls    *[]pendingCall
+	session      *domain.Session
 	stopReason   string
 	inputTokens  int64
 	outputTokens int64
@@ -175,6 +173,14 @@ func (c *agentCollector) VisitToolCallStart(d llm.ToolCallStartDelta) error {
 	*c.toolCalls = append(*c.toolCalls, pendingCall{
 		id:   d.ID,
 		name: d.Name,
+	})
+	c.session.AddToolCallToAssistant(domain.ToolCall{
+		ID:   d.ID,
+		Name: d.Name,
+	})
+	c.cb.VisitToolCall(domain.ToolCallEvent{
+		ID:   d.ID,
+		Name: d.Name,
 	})
 	return nil
 }

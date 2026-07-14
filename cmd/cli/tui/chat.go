@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"encoding/json"
 	"strings"
 
 	"charm.land/bubbles/v2/viewport"
@@ -16,14 +17,26 @@ type thinkingRegion struct {
 	collapserLine int
 }
 
+type toolCallRegion struct {
+	tcID string
+	line int
+}
+
+type cachedResult struct {
+	content string
+	isError bool
+}
+
 type ChatModel struct {
-	viewport        viewport.Model
-	renderer        *glamour.TermRenderer
-	width           int
-	height          int
-	screenY         int
-	spinnerFrame    int
-	thinkingRegions []thinkingRegion
+	viewport         viewport.Model
+	renderer         *glamour.TermRenderer
+	width            int
+	height           int
+	screenY          int
+	spinnerFrame     int
+	thinkingRegions  []thinkingRegion
+	toolCallRegions  []toolCallRegion
+	toolCallExpanded map[string]bool
 }
 
 func NewChatModel(w, h int) ChatModel {
@@ -32,9 +45,10 @@ func NewChatModel(w, h int) ChatModel {
 		viewport.WithHeight(h),
 	)
 	return ChatModel{
-		viewport: vp,
-		width:    w,
-		height:   h,
+		viewport:         vp,
+		width:            w,
+		height:           h,
+		toolCallExpanded: make(map[string]bool),
 	}
 }
 
@@ -68,6 +82,15 @@ func (c *ChatModel) ThinkingLineToMsg(line int) (int, bool) {
 	return 0, false
 }
 
+func (c *ChatModel) ToolCallLineToID(line int) (string, bool) {
+	for _, r := range c.toolCallRegions {
+		if r.line == line {
+			return r.tcID, true
+		}
+	}
+	return "", false
+}
+
 func (c *ChatModel) Rebuild(allMsgs []domain.ChatMessage) {
 	c.buildContent(allMsgs)
 }
@@ -88,8 +111,21 @@ func (c *ChatModel) Update(msg tea.Msg) (ChatModel, tea.Cmd) {
 }
 
 func (c *ChatModel) buildContent(messages []domain.ChatMessage) {
+	completedTools := make(map[string]bool)
+	toolResultContent := make(map[string]cachedResult)
+	for _, msg := range messages {
+		if msg.ToolCallID != "" {
+			completedTools[msg.ToolCallID] = true
+			toolResultContent[msg.ToolCallID] = cachedResult{
+				content: msg.Content,
+				isError: msg.IsError,
+			}
+		}
+	}
+
 	var sb strings.Builder
 	c.thinkingRegions = c.thinkingRegions[:0]
+	c.toolCallRegions = c.toolCallRegions[:0]
 	w := max(20, c.width-2)
 	line := 0
 
@@ -143,19 +179,80 @@ func (c *ChatModel) buildContent(messages []domain.ChatMessage) {
 				sb.WriteString("\n")
 				line += strings.Count(e, "\n") + 1
 			}
+			for _, tc := range msg.ToolCalls {
+				c.renderToolCallLine(&sb, &line, w, tc, completedTools[tc.ID], toolResultContent)
+			}
 		default:
-			content := lipgloss.NewStyle().
-				Foreground(mutedFg).
-				PaddingLeft(2).
-				MaxWidth(w).
-				Render(msg.Content)
-			sb.WriteString(content)
-			sb.WriteString("\n")
-			line += strings.Count(content, "\n") + 1
+			continue
 		}
 	}
 
 	c.viewport.SetContent(sb.String())
+}
+
+func (c *ChatModel) renderToolCallLine(sb *strings.Builder, line *int, w int, tc domain.ToolCall, completed bool, results map[string]cachedResult) {
+	label := toolSummary(tc)
+	if label == "" {
+		return
+	}
+
+	skip := skipToolResult(tc.Name)
+
+	if !completed {
+		content := spinnerFrames[c.spinnerFrame%len(spinnerFrames)] + " " + label
+		rendered := lipgloss.NewStyle().
+			Foreground(mutedFg).
+			PaddingLeft(2).
+			Render(content)
+		sb.WriteString(rendered)
+		sb.WriteString("\n")
+		*line += strings.Count(rendered, "\n") + 1
+		return
+	}
+
+	if skip {
+		rendered := lipgloss.NewStyle().
+			Foreground(mutedFg).
+			PaddingLeft(2).
+			Render(label)
+		sb.WriteString(rendered)
+		sb.WriteString("\n")
+		*line += strings.Count(rendered, "\n") + 1
+		return
+	}
+
+	expanded := c.toolCallExpanded[tc.ID]
+	c.toolCallRegions = append(c.toolCallRegions, toolCallRegion{tcID: tc.ID, line: *line})
+
+	prefix := "+ "
+	if expanded {
+		prefix = "- "
+	}
+	rendered := lipgloss.NewStyle().
+		Foreground(accent).
+		PaddingLeft(2).
+		Render(prefix + label)
+	sb.WriteString(rendered)
+	sb.WriteString("\n")
+	*line += strings.Count(rendered, "\n") + 1
+
+	if expanded {
+		result, ok := results[tc.ID]
+		if ok {
+			style := lipgloss.NewStyle().PaddingLeft(4).MaxWidth(w)
+			if result.isError {
+				style = style.Foreground(lipgloss.Color("#EF4444"))
+			} else {
+				style = style.Foreground(mutedFg)
+			}
+			for resultLine := range strings.SplitSeq(result.content, "\n") {
+				renderedLine := style.Render(resultLine)
+				sb.WriteString(renderedLine)
+				sb.WriteString("\n")
+				*line += strings.Count(renderedLine, "\n") + 1
+			}
+		}
+	}
 }
 
 func (c *ChatModel) renderMarkdown(content string) string {
@@ -184,4 +281,46 @@ func (c *ChatModel) thinkingHeader(expanded, spinning bool) string {
 		content = "- Thinking"
 	}
 	return lipgloss.NewStyle().PaddingLeft(2).Render(thinkingHeaderStyle.Render(content))
+}
+
+func toolSummary(tc domain.ToolCall) string {
+	switch tc.Name {
+	case "ReadFile":
+		return "Read " + extractField(tc.Input, "file_path")
+	case "WriteFile":
+		return "Wrote " + extractField(tc.Input, "file_path")
+	case "EditFile":
+		return "Edited " + extractField(tc.Input, "file_path")
+	case "Glob":
+		return "Glob " + extractField(tc.Input, "pattern")
+	case "Grep":
+		return "Grep " + extractField(tc.Input, "pattern")
+	case "Bash":
+		return "Bash " + extractField(tc.Input, "command")
+	}
+	return ""
+}
+
+func skipToolResult(name string) bool {
+	switch name {
+	case "ReadFile", "WriteFile", "EditFile", "Grep", "Glob":
+		return true
+	}
+	return false
+}
+
+func extractField(inputJSON, key string) string {
+	var m map[string]any
+	if err := json.Unmarshal([]byte(inputJSON), &m); err != nil {
+		return ""
+	}
+	v, ok := m[key]
+	if !ok {
+		return ""
+	}
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+	return s
 }

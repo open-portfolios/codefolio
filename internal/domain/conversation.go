@@ -22,6 +22,7 @@ type ChatMessage struct {
 	Timestamp         time.Time
 	Streaming         bool
 	Error             string
+	IsError           bool
 	ToolCalls         []ToolCall
 	ToolCallID        string
 }
@@ -131,12 +132,13 @@ func (s *Session) AddToolCallToAssistant(toolCall ToolCall) {
 	last.ToolCalls = append(last.ToolCalls, toolCall)
 }
 
-func (s *Session) AddToolResultMessage(toolCallID string, content string) {
+func (s *Session) AddToolResultMessage(toolCallID string, content string, isError bool) {
 	s.msgSeq++
 	msg := ChatMessage{
 		ID:         toolMsgID(s.msgSeq),
 		Role:       llm.RoleTool,
 		Content:    content,
+		IsError:    isError,
 		ToolCallID: toolCallID,
 		Timestamp:  time.Now(),
 	}

@@ -418,6 +418,14 @@ func (m *Model) handleChatClick(mx, my int) {
 	}
 
 	contentLine := localY + m.chat.YOffset()
+
+	tcID, ok := m.chat.ToolCallLineToID(contentLine)
+	if ok {
+		m.chat.toolCallExpanded[tcID] = !m.chat.toolCallExpanded[tcID]
+		m.chat.Rebuild(m.session.Messages)
+		return
+	}
+
 	msgIdx, ok := m.chat.ThinkingLineToMsg(contentLine)
 	if !ok {
 		return
