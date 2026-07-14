@@ -2,7 +2,6 @@ package svc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/open-portfolios/codefolio/internal/domain"
@@ -10,7 +9,7 @@ import (
 	"github.com/open-portfolios/codefolio/pkg/llm"
 )
 
-const maxAgentIterations = 30
+const defaultMaxIterations = 30
 
 type pendingCall struct {
 	id    string
@@ -18,44 +17,33 @@ type pendingCall struct {
 	input string
 }
 
-type EventType string
-
-const (
-	EventDelta         EventType = "delta"
-	EventThinking      EventType = "thinking"
-	EventThinkingStart EventType = "thinking_start"
-	EventToolStart     EventType = "tool_start"
-	EventToolDone      EventType = "tool_done"
-	EventDone          EventType = "done"
-	EventError         EventType = "error"
-)
-
-type Event struct {
-	Type      EventType
-	Content   string
-	ToolName  string
-	ToolInput string
-	ToolID    string
-	Err       error
-}
-
-type Callback func(Event)
-
 type Agent struct {
-	Protocol string
+	Protocol      string
+	MaxIterations int
 }
 
 func NewAgent(protocol string) *Agent {
-	return &Agent{Protocol: protocol}
+	return &Agent{
+		Protocol:      protocol,
+		MaxIterations: defaultMaxIterations,
+	}
 }
 
-func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Session, registry *tools.Registry, model string, cb Callback) error {
+func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Session, registry *tools.Registry, model string, cb domain.EventVisitor) error {
+	var totalInputTokens int64
+	var totalOutputTokens int64
 	iter := 0
+
+	maxIter := a.MaxIterations
+	if maxIter <= 0 {
+		maxIter = defaultMaxIterations
+	}
+
 	for {
 		iter++
-		if iter > maxAgentIterations {
-			cb(Event{Type: EventError, Err: fmt.Errorf("max agent iterations (%d) exceeded", maxAgentIterations)})
-			return fmt.Errorf("max agent iterations (%d) exceeded", maxAgentIterations)
+		if iter > maxIter {
+			cb.VisitError(domain.ErrorEvent{Err: fmt.Errorf("max agent iterations (%d) exceeded", maxIter)})
+			return fmt.Errorf("max agent iterations (%d) exceeded", maxIter)
 		}
 
 		messages := session.ToLLMMessages()
@@ -79,19 +67,19 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 
 				c := &agentCollector{cb: cb, toolCalls: &toolCalls}
 				if err := delta.Accept(c); err != nil {
-					cb(Event{Type: EventError, Err: err})
+					cb.VisitError(domain.ErrorEvent{Err: err})
 					return err
 				}
-				if c.stopReason == "tool_use" || c.stopReason == "end_turn" {
-					if c.stopReason == "tool_use" {
-						hasToolUse = true
-						session.FinishAssistantMessage()
-					}
+				totalInputTokens += c.inputTokens
+				totalOutputTokens += c.outputTokens
+				if c.stopReason == "tool_use" {
+					hasToolUse = true
+					session.FinishAssistantMessage()
 				}
 
 			case err, ok := <-errCh:
 				if ok && err != nil {
-					cb(Event{Type: EventError, Err: err})
+					cb.VisitError(domain.ErrorEvent{Err: err})
 					return err
 				}
 			}
@@ -100,15 +88,20 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 		select {
 		case err, ok := <-errCh:
 			if ok && err != nil {
-				cb(Event{Type: EventError, Err: err})
+				cb.VisitError(domain.ErrorEvent{Err: err})
 				return err
 			}
 		default:
 		}
 
+		cb.VisitUsage(domain.UsageEvent{
+			InputTokens:  totalInputTokens,
+			OutputTokens: totalOutputTokens,
+		})
+
 		if !hasToolUse {
 			session.FinishAssistantMessage()
-			cb(Event{Type: EventDone})
+			cb.VisitLoopComplete(domain.LoopCompleteEvent{TotalTurns: iter})
 			return nil
 		}
 
@@ -121,57 +114,60 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 		}
 
 		for _, tc := range toolCalls {
-			t := registry.Get(tc.name)
-			if t == nil {
-				errMsg := fmt.Sprintf("Error: unknown tool %q", tc.name)
-				session.AddToolResultMessage(tc.id, errMsg)
-				cb(Event{Type: EventToolDone, ToolID: tc.id, Content: errMsg})
-				continue
-			}
-
-			cb(Event{Type: EventToolStart, ToolName: tc.name, ToolInput: tc.input, ToolID: tc.id})
-
-			var args map[string]any
-			if tc.input != "" {
-				if err := json.Unmarshal([]byte(tc.input), &args); err != nil {
-					errMsg := fmt.Sprintf("Error: invalid tool arguments: %s", err)
-					session.AddToolResultMessage(tc.id, errMsg)
-					cb(Event{Type: EventToolDone, ToolID: tc.id, Content: errMsg})
-					continue
-				}
-			}
-
-			result := t.Execute(ctx, args)
-			session.AddToolResultMessage(tc.id, result.Output)
-			cb(Event{Type: EventToolDone, ToolID: tc.id, Content: result.Output, ToolName: tc.name})
+			cb.VisitToolCall(domain.ToolCallEvent{
+				ID:    tc.id,
+				Name:  tc.name,
+				Input: tc.input,
+			})
 		}
+
+		executor := NewExecutor(registry)
+		for _, tc := range toolCalls {
+			executor.Submit(ctx, tc.id, tc.name, tc.input)
+		}
+
+		results := executor.CollectResults()
+		for _, r := range results {
+			session.AddToolResultMessage(r.ID, r.Output)
+			cb.VisitToolResult(r)
+		}
+
+		cb.VisitTurnComplete(domain.TurnCompleteEvent{Turn: iter})
 		session.StartAssistantMessage()
 	}
 }
 
 type agentCollector struct {
 	llm.BaseDeltaVisitor
-	cb         Callback
-	toolCalls  *[]pendingCall
-	stopReason string
+	cb           domain.EventVisitor
+	toolCalls    *[]pendingCall
+	stopReason   string
+	inputTokens  int64
+	outputTokens int64
 }
 
 func (c *agentCollector) VisitMessage(d llm.MessageDelta) error {
 	if d.Content != "" {
-		c.cb(Event{Type: EventDelta, Content: d.Content})
+		c.cb.VisitStream(domain.StreamEvent{Content: d.Content})
 	}
 	return nil
 }
 
 func (c *agentCollector) VisitThinking(d llm.ThinkingDelta) error {
 	if d.Content != "" {
-		c.cb(Event{Type: EventThinking, Content: d.Content})
+		c.cb.VisitThink(domain.ThinkEvent{Content: d.Content})
 	}
 	return nil
 }
 
 func (c *agentCollector) VisitThinkingStart(d llm.ThinkingStartDelta) error {
-	c.cb(Event{Type: EventThinkingStart, Content: d.Signature})
+	c.cb.VisitThinkStart(domain.ThinkStartEvent{Signature: d.Signature})
+	return nil
+}
+
+func (c *agentCollector) VisitUsage(d llm.UsageDelta) error {
+	c.inputTokens += int64(d.InputTokens)
+	c.outputTokens += int64(d.OutputTokens)
 	return nil
 }
 

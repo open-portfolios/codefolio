@@ -161,7 +161,9 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 			}
 
 			u := llm.UsageDelta{
-				TotalTokens: uint64(event.Usage.TotalTokens),
+				InputTokens:  uint64(event.Usage.PromptTokens),
+				OutputTokens: uint64(event.Usage.CompletionTokens),
+				TotalTokens:  uint64(event.Usage.TotalTokens),
 			}
 			if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, u); err != nil {
 				errChan <- err

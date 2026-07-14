@@ -17,6 +17,11 @@ type thinkingStartMsg struct{ Signature string }
 type streamDoneMsg struct{}
 type streamErrMsg struct{ Err error }
 type spinnerTickMsg struct{}
+type turnCompleteMsg struct{ Turn int }
+type usageMsg struct {
+	InputTokens  int64
+	OutputTokens int64
+}
 type toolCallMsg struct {
 	ID       string
 	ToolName string
@@ -27,38 +32,73 @@ type toolCallMsg struct {
 
 func RunAgent(ctx context.Context, p *tea.Program, agent *svc.Agent, driver llm.Driver, session *domain.Session, registry *tools.Registry, model string) tea.Cmd {
 	return func() tea.Msg {
-		err := agent.Run(ctx, driver, session, registry, model, func(event svc.Event) {
-			switch event.Type {
-			case svc.EventDelta:
-				p.Send(streamDeltaMsg(event.Content))
-			case svc.EventThinking:
-				p.Send(streamThinkingMsg(event.Content))
-			case svc.EventThinkingStart:
-				p.Send(thinkingStartMsg{Signature: event.Content})
-			case svc.EventToolStart:
-				p.Send(toolCallMsg{
-					ID:       event.ToolID,
-					ToolName: event.ToolName,
-					Input:    event.ToolInput,
-				})
-			case svc.EventToolDone:
-				p.Send(toolCallMsg{
-					ID:       event.ToolID,
-					ToolName: event.ToolName,
-					Content:  event.Content,
-					IsDone:   true,
-				})
-			case svc.EventDone:
-				p.Send(streamDoneMsg{})
-			case svc.EventError:
-				p.Send(streamErrMsg{Err: event.Err})
-			}
-		})
+		var cb tuiEventVisitor
+		cb.p = p
+		err := agent.Run(ctx, driver, session, registry, model, &cb)
 		if err != nil {
 			p.Send(streamErrMsg{Err: err})
 		}
 		return nil
 	}
+}
+
+type tuiEventVisitor struct {
+	domain.BaseEventVisitor
+	p *tea.Program
+}
+
+func (v *tuiEventVisitor) VisitStream(e domain.StreamEvent) error {
+	v.p.Send(streamDeltaMsg(e.Content))
+	return nil
+}
+
+func (v *tuiEventVisitor) VisitThink(e domain.ThinkEvent) error {
+	v.p.Send(streamThinkingMsg(e.Content))
+	return nil
+}
+
+func (v *tuiEventVisitor) VisitThinkStart(e domain.ThinkStartEvent) error {
+	v.p.Send(thinkingStartMsg{Signature: e.Signature})
+	return nil
+}
+
+func (v *tuiEventVisitor) VisitToolCall(e domain.ToolCallEvent) error {
+	v.p.Send(toolCallMsg{
+		ID:       e.ID,
+		ToolName: e.Name,
+		Input:    e.Input,
+	})
+	return nil
+}
+
+func (v *tuiEventVisitor) VisitToolResult(e domain.ToolResultEvent) error {
+	v.p.Send(toolCallMsg{
+		ID:       e.ID,
+		ToolName: e.Name,
+		Content:  e.Output,
+		IsDone:   true,
+	})
+	return nil
+}
+
+func (v *tuiEventVisitor) VisitTurnComplete(e domain.TurnCompleteEvent) error {
+	v.p.Send(turnCompleteMsg{Turn: e.Turn})
+	return nil
+}
+
+func (v *tuiEventVisitor) VisitLoopComplete(e domain.LoopCompleteEvent) error {
+	v.p.Send(streamDoneMsg{})
+	return nil
+}
+
+func (v *tuiEventVisitor) VisitUsage(e domain.UsageEvent) error {
+	v.p.Send(usageMsg{InputTokens: e.InputTokens, OutputTokens: e.OutputTokens})
+	return nil
+}
+
+func (v *tuiEventVisitor) VisitError(e domain.ErrorEvent) error {
+	v.p.Send(streamErrMsg{Err: e.Err})
+	return nil
 }
 
 type collector struct {

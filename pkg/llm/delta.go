@@ -40,7 +40,9 @@ type ThinkingStartDelta struct {
 }
 
 type UsageDelta struct {
-	TotalTokens uint64
+	InputTokens  uint64
+	OutputTokens uint64
+	TotalTokens  uint64
 }
 
 type ToolCallStartDelta struct {

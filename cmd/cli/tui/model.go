@@ -60,6 +60,9 @@ type Model struct {
 	askQ    int
 	askCur  int
 	askSels []int
+
+	inputTokens  int64
+	outputTokens int64
 }
 
 type questionRequestMsg struct {
@@ -189,9 +192,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.streaming != streamRunning {
 			return m, nil
 		}
-		m.session.FinishAssistantMessage()
 		m.streaming = streamIdle
 		m.chat.RebuildAndScroll(m.session.Messages)
+		return m, nil
+
+	case turnCompleteMsg:
+		if m.streaming == streamRunning {
+			m.chat.RebuildAndScroll(m.session.Messages)
+		}
+		return m, nil
+
+	case usageMsg:
+		m.inputTokens = msg.InputTokens
+		m.outputTokens = msg.OutputTokens
 		return m, nil
 
 	case streamErrMsg:

@@ -189,7 +189,9 @@ func (d *Driver) Stream(ctx context.Context, messages []llm.Message, options ...
 				}
 			case anthropic.MessageDeltaEvent:
 				u := llm.UsageDelta{
-					TotalTokens: uint64(e.Usage.InputTokens) + uint64(e.Usage.OutputTokens),
+					InputTokens:  uint64(e.Usage.InputTokens),
+					OutputTokens: uint64(e.Usage.OutputTokens),
+					TotalTokens:  uint64(e.Usage.InputTokens) + uint64(e.Usage.OutputTokens),
 				}
 				if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, u); err != nil {
 					errChan <- err
