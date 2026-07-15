@@ -8,7 +8,7 @@ import (
 	"github.com/open-portfolios/codefolio/internal/domain"
 )
 
-func renderSidebar(session *domain.Session, width int) string {
+func renderSidebar(session domain.Session, width int) string {
 	sections := []string{
 		SidebarTitleStyle.Render("Session"),
 		"",

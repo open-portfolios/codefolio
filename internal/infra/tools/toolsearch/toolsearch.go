@@ -12,14 +12,13 @@ import (
 
 type Registry interface {
 	MarkDiscovered(name string)
-	FindDeferredByNames(names []string, protocol string) []map[string]any
-	SearchDeferred(query string, maxResults int, protocol string) []map[string]any
+	FindDeferredByNames(names []string) []map[string]any
+	SearchDeferred(query string, maxResults int) []map[string]any
 	GetDeferredToolNames() []string
 }
 
 type ToolSearch struct {
 	Registry Registry
-	Protocol string
 }
 
 func (t *ToolSearch) Name() string { return "ToolSearch" }
@@ -79,9 +78,9 @@ func (t *ToolSearch) Execute(_ context.Context, args map[string]any) domain.Tool
 		for i := range names {
 			names[i] = strings.TrimSpace(names[i])
 		}
-		schemas = t.Registry.FindDeferredByNames(names, t.Protocol)
+		schemas = t.Registry.FindDeferredByNames(names)
 	} else {
-		schemas = t.Registry.SearchDeferred(query, maxResults, t.Protocol)
+		schemas = t.Registry.SearchDeferred(query, maxResults)
 	}
 
 	if len(schemas) == 0 {

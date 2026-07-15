@@ -5,8 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
-	"github.com/open-portfolios/codefolio/internal/infra/tools"
 	"github.com/open-portfolios/codefolio/internal/svc"
 	"github.com/open-portfolios/codefolio/pkg/llm"
 )
@@ -30,11 +30,11 @@ type toolCallMsg struct {
 	IsDone   bool
 }
 
-func RunAgent(ctx context.Context, p *tea.Program, agent *svc.Agent, driver llm.Driver, session *domain.Session, registry *tools.Registry, model string) tea.Cmd {
+func RunAgent(ctx context.Context, p *tea.Program, agent *svc.Agent, session domain.Session, cfg *conf.Global) tea.Cmd {
 	return func() tea.Msg {
 		var cb tuiEventVisitor
 		cb.p = p
-		err := agent.Run(ctx, driver, session, registry, model, &cb)
+		err := agent.Run(ctx, session, cfg, &cb)
 		if err != nil {
 			p.Send(streamErrMsg{Err: err})
 		}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestRegistryRegisterAndGet(t *testing.T) {
-	r := NewRegistry()
+	r := newRegistry()
 	r.Register(&stubTool{name: "TestTool"})
 	tool := r.Get("TestTool")
 	if tool == nil {
@@ -20,39 +20,40 @@ func TestRegistryRegisterAndGet(t *testing.T) {
 }
 
 func TestRegistryGetAllSchemasIncludesNonDeferred(t *testing.T) {
-	r := NewRegistry()
+	r := newRegistry()
 	r.Register(&stubTool{name: "A"})
 	r.Register(&stubTool{name: "B"})
-	schemas := r.GetAllSchemas("")
+	schemas := r.GetAllSchemas()
 	if len(schemas) != 2 {
 		t.Errorf("expected 2 schemas, got %d", len(schemas))
 	}
 }
 
 func TestRegistryDeferredToolExcluded(t *testing.T) {
-	r := NewRegistry()
+	r := newRegistry()
 	r.Register(&stubTool{name: "A"})
 	r.Register(&stubDeferredTool{stubTool{name: "B"}})
-	schemas := r.GetAllSchemas("")
+	schemas := r.GetAllSchemas()
 	if len(schemas) != 1 {
 		t.Errorf("expected 1 schema (deferred excluded), got %d", len(schemas))
 	}
 }
 
 func TestRegistryDeferredToolDiscovered(t *testing.T) {
-	r := NewRegistry()
+	r := newRegistry()
 	r.Register(&stubDeferredTool{stubTool{name: "B"}})
 	r.MarkDiscovered("B")
-	schemas := r.GetAllSchemas("")
+	schemas := r.GetAllSchemas()
 	if len(schemas) != 1 {
 		t.Errorf("expected 1 schema after discovery, got %d", len(schemas))
 	}
 }
 
 func TestRegistryOpenAIFormat(t *testing.T) {
-	r := NewRegistry()
+	r := newRegistry()
+	r.protocol = "openai"
 	r.Register(&stubTool{name: "A"})
-	schemas := r.GetAllSchemas("openai")
+	schemas := r.GetAllSchemas()
 	if len(schemas) != 1 {
 		t.Fatal("expected 1 schema")
 	}
@@ -66,7 +67,7 @@ func TestRegistryOpenAIFormat(t *testing.T) {
 }
 
 func TestRegistryGetDeferredToolNames(t *testing.T) {
-	r := NewRegistry()
+	r := newRegistry()
 	r.Register(&stubTool{name: "A"})
 	r.Register(&stubDeferredTool{stubTool{name: "Hidden"}})
 	names := r.GetDeferredToolNames()
@@ -94,7 +95,6 @@ func (s *stubTool) Execute(_ context.Context, _ map[string]any) domain.ToolResul
 	return domain.ToolResult{Output: "ok"}
 }
 
-// Use domain.DeferrableTool
 type stubDeferredTool struct{ stubTool }
 
 func (s *stubDeferredTool) ShouldDefer() bool { return true }

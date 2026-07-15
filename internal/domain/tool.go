@@ -10,6 +10,11 @@ const (
 	CategoryCommand ToolCategory = "command"
 )
 
+type ToolRegistry interface {
+	Get(name string) Tool
+	GetAllSchemas() []map[string]any
+}
+
 type ToolResult struct {
 	Output  string
 	IsError bool

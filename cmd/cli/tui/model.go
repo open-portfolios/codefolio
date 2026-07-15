@@ -11,11 +11,9 @@ import (
 
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
-	"github.com/open-portfolios/codefolio/internal/infra/tools"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
 	"github.com/open-portfolios/codefolio/internal/prompt"
 	"github.com/open-portfolios/codefolio/internal/svc"
-	"github.com/open-portfolios/codefolio/pkg/llm"
 )
 
 type streamingState int
@@ -41,13 +39,11 @@ type Model struct {
 	chat  ChatModel
 	input InputModel
 
-	session *domain.Session
+	session domain.Session
 
-	driver   llm.Driver
-	agent    *svc.Agent
-	registry *tools.Registry
-	cfg      *conf.Global
-	Program  *tea.Program
+	agent   *svc.Agent
+	cfg     *conf.Global
+	Program *tea.Program
 
 	streaming    streamingState
 	spinnerFrame int
@@ -70,7 +66,7 @@ type questionRequestMsg struct {
 	Request askuser.Request
 }
 
-func NewModel(cfg *conf.Global, driver llm.Driver, agent *svc.Agent, session *domain.Session, registry *tools.Registry, askUserCh chan askuser.Request) *Model {
+func NewModel(cfg *conf.Global, agent *svc.Agent, session domain.Session, askUserCh chan askuser.Request) *Model {
 	w := 80
 	h := 24
 
@@ -82,10 +78,8 @@ func NewModel(cfg *conf.Global, driver llm.Driver, agent *svc.Agent, session *do
 
 	return &Model{
 		cfg:              cfg,
-		driver:           driver,
 		agent:            agent,
 		session:          session,
-		registry:         registry,
 		chat:             NewChatModel(w-1, h-4),
 		input:            NewInputModel(w),
 		width:            w,
@@ -130,7 +124,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.updateLayout()
-		m.chat.Rebuild(m.session.Messages)
+		m.chat.Rebuild(m.session.Messages())
 
 	case tea.KeyPressMsg:
 		if m.streaming == streamRunning {
@@ -144,7 +138,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					last.Error = "interrupted"
 				}
 				m.streaming = streamIdle
-				m.chat.Rebuild(m.session.Messages)
+				m.chat.Rebuild(m.session.Messages())
 				return m, nil
 			}
 			return m, nil
@@ -158,18 +152,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.session.AddUserMessage(content)
 		m.session.StartAssistantMessage()
 		m.streaming = streamRunning
-		m.chat.RebuildAndScroll(m.session.Messages)
+		m.chat.RebuildAndScroll(m.session.Messages())
 		ctx, cancel := context.WithCancel(context.Background())
 		m.cancelStream = cancel
-		return m, RunAgent(ctx, m.Program, m.agent, m.driver, m.session, m.registry, m.cfg.Model)
+		return m, RunAgent(ctx, m.Program, m.agent, m.session, m.cfg)
 
 	case streamDeltaMsg:
 		wasAtBottom := m.chat.AtBottom()
 		m.session.AppendDelta(string(msg))
 		if wasAtBottom {
-			m.chat.RebuildAndScroll(m.session.Messages)
+			m.chat.RebuildAndScroll(m.session.Messages())
 		} else {
-			m.chat.Rebuild(m.session.Messages)
+			m.chat.Rebuild(m.session.Messages())
 		}
 		return m, nil
 
@@ -181,17 +175,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		wasAtBottom := m.chat.AtBottom()
 		m.session.AppendThinkingDelta(string(msg))
 		if wasAtBottom {
-			m.chat.RebuildAndScroll(m.session.Messages)
+			m.chat.RebuildAndScroll(m.session.Messages())
 		} else {
-			m.chat.Rebuild(m.session.Messages)
+			m.chat.Rebuild(m.session.Messages())
 		}
 		return m, nil
 
 	case toolCallMsg:
 		if msg.IsDone {
-			m.chat.RebuildAndScroll(m.session.Messages)
+			m.chat.RebuildAndScroll(m.session.Messages())
 		} else {
-			m.chat.RebuildAndScroll(m.session.Messages)
+			m.chat.RebuildAndScroll(m.session.Messages())
 		}
 		return m, nil
 
@@ -200,12 +194,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.streaming = streamIdle
-		m.chat.RebuildAndScroll(m.session.Messages)
+		m.chat.RebuildAndScroll(m.session.Messages())
 		return m, nil
 
 	case turnCompleteMsg:
 		if m.streaming == streamRunning {
-			m.chat.RebuildAndScroll(m.session.Messages)
+			m.chat.RebuildAndScroll(m.session.Messages())
 		}
 		return m, nil
 
@@ -223,14 +217,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			last.Error = msg.Err.Error()
 		}
 		m.streaming = streamIdle
-		m.chat.Rebuild(m.session.Messages)
+		m.chat.Rebuild(m.session.Messages())
 		return m, nil
 
 	case spinnerTickMsg:
 		m.spinnerFrame = (m.spinnerFrame + 1) % len(spinnerFrames)
 		if m.streaming == streamRunning {
 			m.chat.SetSpinnerFrame(m.spinnerFrame)
-			m.chat.Rebuild(m.session.Messages)
+			m.chat.Rebuild(m.session.Messages())
 		}
 		return m, func() tea.Msg {
 			time.Sleep(80 * time.Millisecond)
@@ -253,7 +247,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key, ok := msg.(tea.KeyPressMsg); ok {
 			if key.String() == "ctrl+t" {
 				m.toggleLastThinking()
-				m.chat.Rebuild(m.session.Messages)
+				m.chat.Rebuild(m.session.Messages())
 				return m, nil
 			}
 		}
@@ -283,7 +277,7 @@ func (m *Model) updateAskMode(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			req.ResponseCh <- resp
 			m.askReq = nil
-			m.chat.Rebuild(m.session.Messages)
+			m.chat.Rebuild(m.session.Messages())
 			return m, nil
 
 		case "up", "k":
@@ -312,7 +306,7 @@ func (m *Model) updateAskMode(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				req.ResponseCh <- resp
 				m.askReq = nil
-				m.chat.Rebuild(m.session.Messages)
+				m.chat.Rebuild(m.session.Messages())
 			}
 			return m, nil
 		}
@@ -429,7 +423,7 @@ func (m *Model) handleChatClick(mx, my int) {
 	tcID, ok := m.chat.ToolCallLineToID(contentLine)
 	if ok {
 		m.chat.toolCallExpanded[tcID] = !m.chat.toolCallExpanded[tcID]
-		m.chat.Rebuild(m.session.Messages)
+		m.chat.Rebuild(m.session.Messages())
 		return
 	}
 
@@ -438,16 +432,16 @@ func (m *Model) handleChatClick(mx, my int) {
 		return
 	}
 
-	if msgIdx < len(m.session.Messages) {
-		m.session.Messages[msgIdx].ThinkingExpanded = !m.session.Messages[msgIdx].ThinkingExpanded
-		m.chat.Rebuild(m.session.Messages)
+	if msgIdx < len(m.session.Messages()) {
+		m.session.Messages()[msgIdx].ThinkingExpanded = !m.session.Messages()[msgIdx].ThinkingExpanded
+		m.chat.Rebuild(m.session.Messages())
 	}
 }
 
 func (m *Model) toggleLastThinking() {
-	for i := len(m.session.Messages) - 1; i >= 0; i-- {
-		if m.session.Messages[i].Thinking != "" {
-			m.session.Messages[i].ThinkingExpanded = !m.session.Messages[i].ThinkingExpanded
+	for i := len(m.session.Messages()) - 1; i >= 0; i-- {
+		if m.session.Messages()[i].Thinking != "" {
+			m.session.Messages()[i].ThinkingExpanded = !m.session.Messages()[i].ThinkingExpanded
 			return
 		}
 	}

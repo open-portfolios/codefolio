@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
-	"github.com/open-portfolios/codefolio/internal/infra/tools"
 	"github.com/open-portfolios/codefolio/internal/prompt"
 	"github.com/open-portfolios/codefolio/pkg/llm"
 )
@@ -28,19 +28,23 @@ type pendingCall struct {
 }
 
 type Agent struct {
-	Protocol      string
 	MaxIterations int
 	Mode          AgentMode
+	driver        llm.Driver
+	execFactory   domain.ExecutorFactory
+	toolRegistry  domain.ToolRegistry
 }
 
-func NewAgent(protocol string) *Agent {
+func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistry domain.ToolRegistry) *Agent {
 	return &Agent{
-		Protocol:      protocol,
 		MaxIterations: defaultMaxIterations,
+		driver:        driver,
+		execFactory:   execFactory,
+		toolRegistry:  toolRegistry,
 	}
 }
 
-func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Session, registry *tools.Registry, model string, cb domain.EventVisitor) error {
+func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Global, cb domain.EventVisitor) error {
 	var totalInputTokens int64
 	var totalOutputTokens int64
 	iter := 0
@@ -63,11 +67,11 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 			session.AddSystemMessage(reminder)
 		}
 
-		messages := ChatMessagesToLLM(session.Messages)
-		schemas := registry.GetAllSchemas(a.Protocol)
+		messages := ChatMessagesToLLM(session.Messages())
+		schemas := a.toolRegistry.GetAllSchemas()
 
-		deltaCh, errCh := driver.Stream(ctx, messages,
-			llm.WithModel(model),
+		deltaCh, errCh := a.driver.Stream(ctx, messages,
+			llm.WithModel(cfg.Model),
 			llm.WithTools(schemas),
 		)
 
@@ -135,12 +139,12 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 			}
 		}
 
-		executor := NewExecutor(registry)
+		exec := a.execFactory(a.toolRegistry)
 		for _, tc := range toolCalls {
-			executor.Submit(ctx, tc.id, tc.name, tc.input)
+			exec.Submit(ctx, tc.id, tc.name, tc.input)
 		}
 
-		results := executor.CollectResults()
+		results := exec.CollectResults()
 		for _, r := range results {
 			session.AddToolResultMessage(r.ID, r.Output, r.IsError)
 			cb.VisitToolResult(r)
@@ -155,7 +159,7 @@ type agentCollector struct {
 	llm.BaseDeltaVisitor
 	cb           domain.EventVisitor
 	toolCalls    *[]pendingCall
-	session      *domain.Session
+	session      domain.Session
 	stopReason   string
 	inputTokens  int64
 	outputTokens int64

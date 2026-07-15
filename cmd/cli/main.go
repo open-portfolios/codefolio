@@ -8,6 +8,7 @@ import (
 	dotenv "github.com/joho/godotenv"
 
 	"github.com/open-portfolios/codefolio/internal/conf"
+	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
 )
 
 func init() {
@@ -23,7 +24,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	model, cleanup, err := InitModel(cfg)
+	askUserCh := make(chan askuser.Request, 1)
+	model, cleanup, err := InitModel(cfg, askUserCh)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "init error: %v\n", err)
 		os.Exit(1)

@@ -8,11 +8,10 @@ import (
 	"time"
 
 	"github.com/open-portfolios/codefolio/internal/domain"
-	"github.com/open-portfolios/codefolio/internal/infra/tools"
 )
 
-type Executor struct {
-	registry *tools.Registry
+type executor struct {
+	registry domain.ToolRegistry
 	mu       sync.Mutex
 	pending  []pendingTool
 	wg       sync.WaitGroup
@@ -34,11 +33,11 @@ type toolExecResult struct {
 	elapsed  time.Duration
 }
 
-func NewExecutor(registry *tools.Registry) *Executor {
-	return &Executor{registry: registry}
+func NewExecutor(registry domain.ToolRegistry) domain.Executor {
+	return &executor{registry: registry}
 }
 
-func (e *Executor) Submit(ctx context.Context, toolID, toolName, input string) {
+func (e *executor) Submit(ctx context.Context, toolID, toolName, input string) {
 	e.mu.Lock()
 	idx := len(e.pending)
 	e.pending = append(e.pending, pendingTool{
@@ -57,7 +56,7 @@ func (e *Executor) Submit(ctx context.Context, toolID, toolName, input string) {
 	})
 }
 
-func (e *Executor) CollectResults() []domain.ToolResultEvent {
+func (e *executor) CollectResults() []domain.ToolResultEvent {
 	e.wg.Wait()
 
 	e.mu.Lock()
@@ -78,7 +77,7 @@ func (e *Executor) CollectResults() []domain.ToolResultEvent {
 	return results
 }
 
-func (e *Executor) execute(ctx context.Context, toolID, toolName, input string) toolExecResult {
+func (e *executor) execute(ctx context.Context, toolID, toolName, input string) toolExecResult {
 	start := time.Now()
 
 	t := e.registry.Get(toolName)

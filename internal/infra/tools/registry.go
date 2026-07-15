@@ -3,6 +3,7 @@ package tools
 import (
 	"strings"
 
+	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/bash"
@@ -14,13 +15,29 @@ import (
 type Registry struct {
 	tools           map[string]domain.Tool
 	discoveredTools map[string]bool
+	protocol        string
 }
 
-func NewRegistry() *Registry {
+func newRegistry() *Registry {
 	return &Registry{
 		tools:           make(map[string]domain.Tool),
 		discoveredTools: make(map[string]bool),
 	}
+}
+
+func NewRegistry(askUserCh chan askuser.Request, cfg *conf.Global) domain.ToolRegistry {
+	fsc := file.NewStateCache()
+	reg := newRegistry()
+	reg.protocol = cfg.Protocol
+	reg.Register(&file.Reader{StateCache: fsc})
+	reg.Register(&file.Writer{StateCache: fsc})
+	reg.Register(&file.Editor{StateCache: fsc})
+	reg.Register(&bash.Tool{})
+	reg.Register(&search.Glob{})
+	reg.Register(&search.Grep{})
+	reg.Register(&askuser.Tool{RequestCh: askUserCh})
+	reg.Register(&toolsearch.ToolSearch{Registry: reg})
+	return reg
 }
 
 func (r *Registry) MarkDiscovered(name string) {
@@ -54,14 +71,14 @@ func isDeferred(t domain.Tool) bool {
 	return false
 }
 
-func (r *Registry) GetAllSchemas(protocol string) []map[string]any {
+func (r *Registry) GetAllSchemas() []map[string]any {
 	schemas := make([]map[string]any, 0, len(r.tools))
 	for _, t := range r.tools {
 		if isDeferred(t) && !r.discoveredTools[t.Name()] {
 			continue
 		}
 		base := t.Schema()
-		if protocol == "openai" {
+		if r.protocol == "openai" {
 			schemas = append(schemas, map[string]any{
 				"type":        "function",
 				"name":        base["name"],
@@ -95,7 +112,7 @@ func (r *Registry) GetDeferredTools() []domain.Tool {
 	return result
 }
 
-func (r *Registry) SearchDeferred(query string, maxResults int, protocol string) []map[string]any {
+func (r *Registry) SearchDeferred(query string, maxResults int) []map[string]any {
 	query = strings.ToLower(query)
 	var matches []map[string]any
 	for _, t := range r.tools {
@@ -106,7 +123,7 @@ func (r *Registry) SearchDeferred(query string, maxResults int, protocol string)
 		desc := strings.ToLower(t.Description())
 		if strings.Contains(name, query) || strings.Contains(desc, query) {
 			base := t.Schema()
-			if protocol == "openai" {
+			if r.protocol == "openai" {
 				matches = append(matches, map[string]any{
 					"type":        "function",
 					"name":        base["name"],
@@ -124,7 +141,7 @@ func (r *Registry) SearchDeferred(query string, maxResults int, protocol string)
 	return matches
 }
 
-func (r *Registry) FindDeferredByNames(names []string, protocol string) []map[string]any {
+func (r *Registry) FindDeferredByNames(names []string) []map[string]any {
 	nameSet := make(map[string]bool)
 	for _, n := range names {
 		nameSet[strings.ToLower(n)] = true
@@ -133,7 +150,7 @@ func (r *Registry) FindDeferredByNames(names []string, protocol string) []map[st
 	for _, t := range r.tools {
 		if nameSet[strings.ToLower(t.Name())] {
 			base := t.Schema()
-			if protocol == "openai" {
+			if r.protocol == "openai" {
 				matches = append(matches, map[string]any{
 					"type":        "function",
 					"name":        base["name"],
@@ -146,31 +163,4 @@ func (r *Registry) FindDeferredByNames(names []string, protocol string) []map[st
 		}
 	}
 	return matches
-}
-
-type DefaultTools struct {
-	Registry *Registry
-	Writer   *file.Writer
-	Editor   *file.Editor
-}
-
-func CreateDefaultRegistry(askUserCh chan askuser.Request, protocol string) *Registry {
-	dt := CreateDefaultTools(askUserCh, protocol)
-	return dt.Registry
-}
-
-func CreateDefaultTools(askUserCh chan askuser.Request, protocol string) DefaultTools {
-	fsc := file.NewStateCache()
-	wf := &file.Writer{StateCache: fsc}
-	ef := &file.Editor{StateCache: fsc}
-	reg := NewRegistry()
-	reg.Register(&file.Reader{StateCache: fsc})
-	reg.Register(wf)
-	reg.Register(ef)
-	reg.Register(&bash.Tool{})
-	reg.Register(&search.Glob{})
-	reg.Register(&search.Grep{})
-	reg.Register(&askuser.Tool{RequestCh: askUserCh})
-	reg.Register(&toolsearch.ToolSearch{Registry: reg, Protocol: protocol})
-	return DefaultTools{Registry: reg, Writer: wf, Editor: ef}
 }
