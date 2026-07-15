@@ -158,6 +158,7 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Globa
 
 type agentCollector struct {
 	llm.BaseDeltaVisitor
+
 	cb           domain.EventVisitor
 	toolCalls    *[]pendingCall
 	session      domain.Session

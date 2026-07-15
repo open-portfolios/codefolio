@@ -44,6 +44,7 @@ func RunAgent(ctx context.Context, p *tea.Program, agent *svc.Agent, session dom
 
 type tuiEventVisitor struct {
 	domain.BaseEventVisitor
+
 	p *tea.Program
 }
 
@@ -103,6 +104,7 @@ func (v *tuiEventVisitor) VisitError(e domain.ErrorEvent) error {
 
 type collector struct {
 	llm.BaseDeltaVisitor
+
 	message  string
 	thinking string
 }
