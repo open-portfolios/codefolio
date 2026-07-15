@@ -9,11 +9,13 @@ package main
 import (
 	"github.com/open-portfolios/codefolio/cmd/cli/tui"
 	"github.com/open-portfolios/codefolio/internal/conf"
+	"github.com/open-portfolios/codefolio/internal/infra"
 	"github.com/open-portfolios/codefolio/internal/infra/llm"
 	"github.com/open-portfolios/codefolio/internal/infra/session"
 	"github.com/open-portfolios/codefolio/internal/infra/tools"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
 	"github.com/open-portfolios/codefolio/internal/svc"
+	"github.com/open-portfolios/codefolio/internal/svc/prompt"
 )
 
 // Injectors from wire.go:
@@ -23,11 +25,13 @@ func InitModel(cfg *conf.Global, askUserCh chan askuser.Request) (*tui.Model, fu
 	if err != nil {
 		return nil, nil, err
 	}
-	executorFactory := svc.NewExecutorFactory()
+	executorFactory := infra.NewExecutorFactory()
 	toolRegistry := tools.NewRegistry(askUserCh, cfg)
-	agent := svc.NewAgent(driver, executorFactory, toolRegistry)
+	promptService := prompt.NewPromptService()
+	agent := svc.NewAgent(driver, executorFactory, toolRegistry, promptService)
 	domainSession := session.New()
-	model := tui.NewModel(cfg, agent, domainSession, askUserCh)
+	environmentService := infra.NewEnvironmentService()
+	model := tui.NewModel(cfg, agent, domainSession, promptService, environmentService, askUserCh)
 	return model, func() {
 	}, nil
 }

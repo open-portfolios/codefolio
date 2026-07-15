@@ -29,10 +29,14 @@ type Tool interface {
 }
 
 type DeferrableTool interface {
+	Tool
+
 	ShouldDefer() bool
 }
 
 type SystemTool interface {
+	Tool
+
 	IsSystemTool() bool
 }
 

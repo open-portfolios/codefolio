@@ -3,11 +3,7 @@ package svc
 import (
 	"github.com/google/wire"
 
-	"github.com/open-portfolios/codefolio/internal/domain"
+	"github.com/open-portfolios/codefolio/internal/svc/prompt"
 )
 
-var Set = wire.NewSet(NewAgent, NewExecutorFactory)
-
-func NewExecutorFactory() domain.ExecutorFactory {
-	return NewExecutor
-}
+var Set = wire.NewSet(NewAgent, prompt.NewPromptService)

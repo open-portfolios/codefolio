@@ -1,0 +1,8 @@
+# Environment
+ - Working directory: {{.WorkDir}}
+ - Platform: {{.OS}}/{{.Arch}}
+ - Shell: {{.Shell}}
+ - Is Git repo: {{.IsGitRepo}}
+{{if .IsGitRepo}}{{if .GitBranch}} - Git branch: {{.GitBranch}}{{end}}{{end}}
+ - Model: {{.Model}}
+ - Date: {{.Date}}

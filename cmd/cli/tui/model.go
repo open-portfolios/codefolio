@@ -12,7 +12,6 @@ import (
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
-	"github.com/open-portfolios/codefolio/internal/prompt"
 	"github.com/open-portfolios/codefolio/internal/svc"
 )
 
@@ -66,14 +65,14 @@ type questionRequestMsg struct {
 	Request askuser.Request
 }
 
-func NewModel(cfg *conf.Global, agent *svc.Agent, session domain.Session, askUserCh chan askuser.Request) *Model {
+func NewModel(cfg *conf.Global, agent *svc.Agent, session domain.Session, promptService domain.PromptService, envService domain.EnvironmentService, askUserCh chan askuser.Request) *Model {
 	w := 80
 	h := 24
 
 	workDir, _ := os.Getwd()
-	env := prompt.DetectEnvironment(workDir)
+	env := envService.Detect(workDir)
 	env.Model = cfg.Model
-	sysPrompt := prompt.BuildSystemPrompt(env, prompt.BuildOptions{Model: cfg.Model})
+	sysPrompt := promptService.BuildSystemPrompt(env)
 	session.AddSystemMessage(sysPrompt)
 
 	return &Model{

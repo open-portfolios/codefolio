@@ -1,0 +1,4 @@
+# Tone and Style
+ - Do not use emoji unless the user explicitly requests it. Avoid emoji by default in all communication.
+ - Keep replies concise.
+ - When referencing specific code, use the file_path:line_number format for easy navigation.

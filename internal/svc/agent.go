@@ -7,7 +7,6 @@ import (
 
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
-	"github.com/open-portfolios/codefolio/internal/prompt"
 	"github.com/open-portfolios/codefolio/pkg/llm"
 )
 
@@ -33,14 +32,16 @@ type Agent struct {
 	driver        llm.Driver
 	execFactory   domain.ExecutorFactory
 	toolRegistry  domain.ToolRegistry
+	promptService domain.PromptService
 }
 
-func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistry domain.ToolRegistry) *Agent {
+func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistry domain.ToolRegistry, promptService domain.PromptService) *Agent {
 	return &Agent{
 		MaxIterations: defaultMaxIterations,
 		driver:        driver,
 		execFactory:   execFactory,
 		toolRegistry:  toolRegistry,
+		promptService: promptService,
 	}
 }
 
@@ -63,7 +64,7 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Globa
 
 		if a.Mode == ModePlan {
 			planExists := fileExists(DefaultPlanFilePath)
-			reminder := prompt.BuildPlanModeReminder(DefaultPlanFilePath, planExists, iter)
+			reminder := a.promptService.BuildPlanModeReminder(DefaultPlanFilePath, planExists, iter)
 			session.AddSystemMessage(reminder)
 		}
 

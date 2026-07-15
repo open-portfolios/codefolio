@@ -1,0 +1,2 @@
+Plan file: {{.PlanFilePath}}
+A plan file already exists at {{.PlanFilePath}}. You can read it and make incremental edits using the Editor tool.

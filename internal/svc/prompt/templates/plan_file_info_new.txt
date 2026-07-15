@@ -1,0 +1,2 @@
+Plan file: {{.PlanFilePath}}
+No plan file exists yet. You should create your plan at {{.PlanFilePath}} using the Writer tool.
