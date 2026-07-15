@@ -34,59 +34,10 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 		defer close(deltaChan)
 		defer close(errChan)
 
-		msgs := make([]openai.ChatCompletionMessageParamUnion, 0)
+		converter := &messageConverter{}
 		for _, msg := range messages {
-			switch msg.Role() {
-			case llm.RoleUser:
-				msgs = append(msgs, openai.UserMessage(msg.Content()))
-			case llm.RoleAssistant:
-				if mc, ok := msg.(llm.MessageWithToolCalls); ok && len(mc.ToolCalls()) > 0 {
-					var tcs []openai.ChatCompletionMessageToolCallUnionParam
-					for _, tc := range mc.ToolCalls() {
-						tcs = append(tcs, openai.ChatCompletionMessageToolCallUnionParam{
-							OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
-								ID: tc.ID,
-								Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
-									Name:      tc.Name,
-									Arguments: tc.Input,
-								},
-							},
-						})
-					}
-					assistant := &openai.ChatCompletionAssistantMessageParam{
-						ToolCalls: tcs,
-					}
-					if msg.Content() != "" {
-						assistant.Content = openai.ChatCompletionAssistantMessageParamContentUnion{
-							OfString: param.NewOpt(msg.Content()),
-						}
-					}
-					msgs = append(msgs, openai.ChatCompletionMessageParamUnion{
-						OfAssistant: assistant,
-					})
-				} else {
-					msgs = append(msgs, openai.AssistantMessage(msg.Content()))
-				}
-			case llm.RoleDeveloper:
-				msgs = append(msgs, openai.DeveloperMessage(msg.Content()))
-			case llm.RoleSystem:
-				msgs = append(msgs, openai.SystemMessage(msg.Content()))
-			case llm.RoleTool:
-				if toolcall, ok := msg.(llm.ToolCallMessage); ok {
-					msgs = append(msgs, openai.ToolMessage(toolcall.Content(), toolcall.ToolCallID()))
-				} else {
-					errChan <- llm.ErrMalformedToolMessage
-					return
-				}
-			case llm.RoleFunction:
-				if function, ok := msg.(llm.FunctionMessage); ok {
-					msgs = append(msgs, openai.ChatCompletionMessageParamOfFunction(function.Content(), function.Name()))
-				} else {
-					errChan <- llm.ErrMalformedFunctionMessage
-					return
-				}
-			default:
-				errChan <- fmt.Errorf("unsupported role: %s", msg.Role())
+			if err := msg.Accept(converter); err != nil {
+				errChan <- err
 				return
 			}
 		}
@@ -109,7 +60,7 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 
 		stream := c.client.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
 			Model:    conf.Model,
-			Messages: msgs,
+			Messages: converter.msgs,
 			Tools:    tools,
 		})
 		defer stream.Close()

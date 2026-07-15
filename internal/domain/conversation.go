@@ -27,28 +27,6 @@ type ChatMessage struct {
 	ToolCallID        string
 }
 
-func (m ChatMessage) ToLLMMessage() llm.Message {
-	return chatMsgAdapter{m}
-}
-
-type chatMsgAdapter struct{ msg ChatMessage }
-
-func (a chatMsgAdapter) Role() string    { return a.msg.Role }
-func (a chatMsgAdapter) Content() string { return a.msg.Content }
-
-func (a chatMsgAdapter) ToolCallID() string { return a.msg.ToolCallID }
-
-func (a chatMsgAdapter) ToolCalls() []llm.ToolCallInfo {
-	tcs := make([]llm.ToolCallInfo, len(a.msg.ToolCalls))
-	for i, tc := range a.msg.ToolCalls {
-		tcs[i] = llm.ToolCallInfo{ID: tc.ID, Name: tc.Name, Input: tc.Input}
-	}
-	return tcs
-}
-
-func (a chatMsgAdapter) Thinking() string          { return a.msg.Thinking }
-func (a chatMsgAdapter) ThinkingSignature() string { return a.msg.ThinkingSignature }
-
 type Session struct {
 	Messages  []ChatMessage
 	CreatedAt time.Time
@@ -66,7 +44,7 @@ func (s *Session) AddSystemMessage(content string) {
 	s.msgSeq++
 	msg := ChatMessage{
 		ID:        sysMsgID(s.msgSeq),
-		Role:      "system",
+		Role:      llm.RoleSystem,
 		Content:   content,
 		Timestamp: time.Now(),
 	}
@@ -77,7 +55,7 @@ func (s *Session) AddUserMessage(content string) {
 	s.msgSeq++
 	msg := ChatMessage{
 		ID:        userMsgID(s.msgSeq),
-		Role:      "user",
+		Role:      llm.RoleUser,
 		Content:   content,
 		Timestamp: time.Now(),
 	}
@@ -88,7 +66,7 @@ func (s *Session) StartAssistantMessage() {
 	s.msgSeq++
 	msg := ChatMessage{
 		ID:        asstMsgID(s.msgSeq),
-		Role:      "assistant",
+		Role:      llm.RoleAssistant,
 		Content:   "",
 		Timestamp: time.Now(),
 		Streaming: true,
@@ -170,17 +148,6 @@ func (s *Session) ContextUsage() float64 {
 
 func (s *Session) Duration() time.Duration {
 	return time.Since(s.CreatedAt)
-}
-
-func (s *Session) ToLLMMessages() []llm.Message {
-	msgs := make([]llm.Message, 0, len(s.Messages))
-	for _, m := range s.Messages {
-		if m.Streaming {
-			continue
-		}
-		msgs = append(msgs, m.ToLLMMessage())
-	}
-	return msgs
 }
 
 func userMsgID(seq int) string { return "u-" + itoa(seq) }

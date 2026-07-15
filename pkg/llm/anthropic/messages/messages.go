@@ -2,9 +2,7 @@ package messages
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
@@ -35,56 +33,14 @@ func (d *Driver) Stream(ctx context.Context, messages []llm.Message, options ...
 		defer close(deltaChan)
 		defer close(errChan)
 
-		sys := make([]anthropic.TextBlockParam, 0)
-		msgs := make([]anthropic.MessageParam, 0)
-		for i := 0; i < len(messages); i++ {
-			msg := messages[i]
-			switch msg.Role() {
-			case llm.RoleSystem:
-				sys = append(sys, anthropic.TextBlockParam{Text: msg.Content()})
-			case llm.RoleUser:
-				msgs = append(msgs, anthropic.NewUserMessage(anthropic.NewTextBlock(msg.Content())))
-			case llm.RoleAssistant:
-				var blocks []anthropic.ContentBlockParamUnion
-				if msg.Content() != "" {
-					blocks = append(blocks, anthropic.NewTextBlock(msg.Content()))
-				}
-				if mc, ok := msg.(llm.MessageWithToolCalls); ok && len(mc.ToolCalls()) > 0 {
-					for _, tc := range mc.ToolCalls() {
-						var input any
-						if tc.Input != "" {
-							json.Unmarshal([]byte(tc.Input), &input)
-						}
-						blocks = append(blocks, anthropic.NewToolUseBlock(tc.ID, input, tc.Name))
-					}
-				}
-				if mt, ok := msg.(llm.MessageWithThinking); ok && mt.Thinking() != "" {
-					blocks = append(blocks, anthropic.NewThinkingBlock(mt.ThinkingSignature(), mt.Thinking()))
-				}
-				if len(blocks) == 0 {
-					blocks = append(blocks, anthropic.NewTextBlock(""))
-				}
-				msgs = append(msgs, anthropic.NewAssistantMessage(blocks...))
-			case llm.RoleTool:
-				var blocks []anthropic.ContentBlockParamUnion
-				for i < len(messages) && messages[i].Role() == llm.RoleTool {
-					tm := messages[i]
-					if tc, ok := tm.(llm.ToolCallMessage); ok {
-						isError := false
-						if strings.HasPrefix(tc.Content(), "Error:") {
-							isError = true
-						}
-						blocks = append(blocks, anthropic.NewToolResultBlock(tc.ToolCallID(), tc.Content(), isError))
-					}
-					i++
-				}
-				i--
-				msgs = append(msgs, anthropic.NewUserMessage(blocks...))
-			default:
-				errChan <- fmt.Errorf("unsupported role: %s", msg.Role())
+		converter := &messageConverter{}
+		for _, msg := range messages {
+			if err := msg.Accept(converter); err != nil {
+				errChan <- err
 				return
 			}
 		}
+		converter.flushToolBlocks()
 
 		tools := make([]anthropic.ToolUnionParam, 0, len(conf.Tools))
 		for _, schema := range conf.Tools {
@@ -124,8 +80,8 @@ func (d *Driver) Stream(ctx context.Context, messages []llm.Message, options ...
 		stream := d.client.Messages.NewStreaming(ctx, anthropic.MessageNewParams{
 			Model:     conf.Model,
 			MaxTokens: conf.MaxTokens,
-			System:    sys,
-			Messages:  msgs,
+			System:    converter.sys,
+			Messages:  converter.msgs,
 			Tools:     tools,
 		})
 		defer stream.Close()

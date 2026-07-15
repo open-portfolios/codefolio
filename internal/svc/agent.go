@@ -63,7 +63,7 @@ func (a *Agent) Run(ctx context.Context, driver llm.Driver, session *domain.Sess
 			session.AddSystemMessage(reminder)
 		}
 
-		messages := session.ToLLMMessages()
+		messages := ChatMessagesToLLM(session.Messages)
 		schemas := registry.GetAllSchemas(a.Protocol)
 
 		deltaCh, errCh := driver.Stream(ctx, messages,
