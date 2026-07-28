@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.52.0
-	github.com/cylixlee/tux v0.0.0
+	github.com/cylixlee/tux v0.1.0
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/google/wire v0.7.0
 	github.com/joho/godotenv v1.5.1
@@ -12,8 +12,6 @@ require (
 	github.com/openai/openai-go/v3 v3.41.0
 	github.com/wailsapp/wails/v2 v2.12.0
 )
-
-replace github.com/cylixlee/tux => ../tux
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect

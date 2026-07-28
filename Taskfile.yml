@@ -10,14 +10,14 @@ vars:
 tasks:
   check:
     desc: Check the project for errors
+    dir: "{{.TASKFILE_DIR}}"
     cmds:
-      - GOWORK=off go mod tidy
-      - GOWORK=off go generate ./...
-      - GOWORK=off go fix ./...
-      - GOWORK=off go fmt ./...
-      - GOWORK=off go build ./...
-      - GOWORK=off go test ./...
-      - GOWORK=off go vet ./...
+      - wire ./...
+      - go fix ./...
+      - go fmt ./...
+      - go build ./...
+      - go test ./...
+      - go vet ./...
       - cd cmd/app/web && pnpm build
       - cd cmd/app/web && pnpm lint
     silent: true
@@ -25,6 +25,7 @@ tasks:
 
   cli:
     desc: Run codefolio CLI
+    dir: "{{.TASKFILE_DIR}}"
     cmds:
       - go run {{.CLI_PROJECT_ROOT}}
     silent: true
@@ -41,12 +42,14 @@ tasks:
 
   clean:
     desc: Clean build artifacts
+    dir: "{{.TASKFILE_DIR}}"
     cmds:
       - rm -rf {{.BUILD_DIR}}
     silent: true
 
   build:
     desc: Build CLI and App for release
+    dir: "{{.TASKFILE_DIR}}"
     cmds:
       - task: clean
       - mkdir -p {{.BUILD_DIR}}
@@ -60,6 +63,7 @@ tasks:
 
   build-cli:
     internal: true
+    dir: "{{.TASKFILE_DIR}}"
     vars:
       EXT:
         sh: if [ "{{OS}}" = "windows" ]; then echo -n ".exe"; fi
