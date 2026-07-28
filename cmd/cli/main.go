@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func init() {
-	if err := dotenv.Load(); err != nil {
+	if err := dotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		panic(err)
 	}
 }
@@ -27,7 +28,7 @@ func main() {
 	}
 
 	askUserCh := make(chan askuser.Request, 1)
-	model, cleanup, err := InitModel(cfg, askUserCh)
+	root, cleanup, err := InitApp(cfg, askUserCh)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "init error: %v\n", err)
 		os.Exit(1)
@@ -43,8 +44,8 @@ func main() {
 	}
 	defer term.Restore()
 
-	runtime := app.New(app.AppConfig{Root: model, Terminal: term})
-	model.AttachApp(runtime)
+	runtime := app.New(app.AppConfig{Root: root, Terminal: term})
+	root.AttachApp(runtime)
 	if err := runtime.Run(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)

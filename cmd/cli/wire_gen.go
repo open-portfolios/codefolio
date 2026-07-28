@@ -7,7 +7,6 @@
 package main
 
 import (
-	"github.com/open-portfolios/codefolio/cmd/cli/tui"
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/infra"
 	"github.com/open-portfolios/codefolio/internal/infra/llm"
@@ -20,7 +19,7 @@ import (
 
 // Injectors from wire.go:
 
-func InitModel(cfg *conf.Global, askUserCh chan askuser.Request) (*tui.Model, func(), error) {
+func InitApp(cfg *conf.Global, askUserCh chan askuser.Request) (*App, func(), error) {
 	driver, err := llm.NewDriver(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -31,7 +30,7 @@ func InitModel(cfg *conf.Global, askUserCh chan askuser.Request) (*tui.Model, fu
 	agent := svc.NewAgent(driver, executorFactory, toolRegistry, promptService)
 	domainSession := session.New()
 	environmentService := infra.NewEnvironmentService()
-	model := tui.NewModel(cfg, agent, domainSession, promptService, environmentService, askUserCh)
-	return model, func() {
+	app := NewApp(cfg, agent, domainSession, promptService, environmentService, askUserCh)
+	return app, func() {
 	}, nil
 }

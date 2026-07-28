@@ -1,0 +1,14 @@
+<component package="components" name="Sidebar">
+    <import package="fmt" />
+    <column key="sidebar-wrap" width="28">
+        <border key="sidebar" title=" Session " borderType="single" borderColor="white">
+            <column gap="1">
+                <text text="SESSION" style="bold" fg="white" />
+                <text text="Messages  {self.messages}" fg="white" />
+                <text text="Input     {self.inputTokens}" fg="white" />
+                <text text="Output    {self.outputTokens}" fg="white" />
+                <text text="Status    {self.status}" fg="white" />
+            </column>
+        </border>
+    </column>
+</component>

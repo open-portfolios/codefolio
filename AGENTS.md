@@ -1,6 +1,6 @@
 # AGENTS.md - codefolio
 
-codefolio — an AI-powered coding tool in the vein of Claude Code or Codex, with both TUI and desktop app interfaces. Tech stack: Go (CLI with Bubble Tea v2), Wails v2 + React + TypeScript (desktop app).
+codefolio — an AI-powered coding tool in the vein of Claude Code or Codex, with both TUI and desktop app interfaces. Tech stack: Go (CLI with the local TUX framework), Wails v2 + React + TypeScript (desktop app).
 
 The project is a work in progress.
 

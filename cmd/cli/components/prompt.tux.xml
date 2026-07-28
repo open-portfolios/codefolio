@@ -1,0 +1,6 @@
+<component package="components" name="Prompt">
+    <column key="bottom" padding="1" gap="1">
+        <textarea key="editor" state="${state}" placeholder="Ask something..." minHeight="1" maxHeight="8" autoFocus="true" fg="white" onKey="${onKey}" />
+        <text text="Enter send | modified Enter newline | Esc cancel | Ctrl+Up/Down history | Ctrl+C clear/quit" style="dim" fg="white" />
+    </column>
+</component>
