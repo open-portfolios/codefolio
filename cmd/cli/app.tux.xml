@@ -1,10 +1,10 @@
 <component package="main" name="App">
-    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Header" alias="components" />
-    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Transcript" alias="components" />
-    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Sidebar" alias="components" />
-    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Prompt" alias="components" />
-    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="AskDialog" alias="components" />
-    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Shell" alias="components" />
+    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Header" />
+    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Transcript" />
+    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Sidebar" />
+    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Prompt" />
+    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="AskDialog" />
+    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Shell" />
 
     <Shell>
         <Header model="{self.controller.ModelName()}" workDir="${workDir}" />

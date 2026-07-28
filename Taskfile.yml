@@ -8,11 +8,23 @@ vars:
   BUILD_DIR: "{{.TASKFILE_DIR}}/build"
 
 tasks:
+  update-devtools:
+    desc: Install latest essential devtools for CLI and App.
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - go install github.com/google/wire/cmd/wire@latest
+      - go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - go install github.com/cylixlee/tux/cmd/tux@latest
+    silent: true
+
   check:
     desc: Check the project for errors
     dir: "{{.TASKFILE_DIR}}"
+    deps:
+      - install-cli-devtools
+      - install-app-devtools
     cmds:
-      - go run github.com/cylixlee/tux/cmd/tux ./cmd/cli/...
+      - tux ./...
       - wire ./...
       - go fix ./...
       - go fmt ./...
@@ -27,7 +39,11 @@ tasks:
   cli:
     desc: Run codefolio CLI
     dir: "{{.TASKFILE_DIR}}"
+    deps:
+      - install-cli-devtools
     cmds:
+      - tux ./...
+      - wire ./...
       - go run {{.CLI_PROJECT_ROOT}}
     silent: true
     interactive: true
@@ -35,7 +51,10 @@ tasks:
   app:
     desc: Run Codefolio App
     dir: "{{.APP_PROJECT_ROOT}}"
+    deps:
+      - install-app-devtools
     cmds:
+      - wire ./...
       - wails dev
       - rm -rf build/bin
     silent: true
@@ -51,6 +70,9 @@ tasks:
   build:
     desc: Build CLI and App for release
     dir: "{{.TASKFILE_DIR}}"
+    deps:
+      - install-cli-devtools
+      - install-app-devtools
     cmds:
       - task: clean
       - mkdir -p {{.BUILD_DIR}}
@@ -65,6 +87,8 @@ tasks:
   build-cli:
     internal: true
     dir: "{{.TASKFILE_DIR}}"
+    deps:
+      - install-cli-devtools
     vars:
       EXT:
         sh: if [ "{{OS}}" = "windows" ]; then echo -n ".exe"; fi
@@ -75,8 +99,35 @@ tasks:
   build-app:
     internal: true
     dir: "{{.APP_PROJECT_ROOT}}"
+    deps:
+      - install-app-devtools
     cmds:
       - wails build > /dev/null
       - mv build/bin/* {{.BUILD_DIR}}/
       - rm -rf build/bin
+    silent: true
+
+  install-common-devtools:
+    internal: true
+    cmds:
+      - cmd: go install github.com/google/wire/cmd/wire@latest
+        if: "! command -v wire > /dev/null"
+    silent: true
+
+  install-cli-devtools:
+    internal: true
+    deps:
+      - install-common-devtools
+    cmds:
+      - cmd: go install github.com/cylixlee/tux/cmd/tux@latest
+        if: "! command -v tux > /dev/null"
+    silent: true
+
+  install-app-devtools:
+    internal: true
+    deps:
+      - install-common-devtools
+    cmds:
+      - cmd: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        if: "! command -v wails > /dev/null"
     silent: true

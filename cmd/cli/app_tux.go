@@ -4,33 +4,33 @@ package main
 
 import (
 	"github.com/cylixlee/tux/renderer"
-	components "github.com/open-portfolios/codefolio/cmd/cli/components"
+	p1 "github.com/open-portfolios/codefolio/cmd/cli/components"
 )
 
 func (self *App) Render(ctx renderer.Context) *renderer.Element {
-	return components.NewShell(ctx, components.ShellProps{},
-		components.NewHeader(ctx, components.HeaderProps{
+	return p1.NewShell(ctx, p1.ShellProps{},
+		p1.NewHeader(ctx, p1.HeaderProps{
 			Model:   self.controller.ModelName(),
 			WorkDir: self.workDir,
 		}),
-		components.NewTranscript(ctx, components.TranscriptProps{
+		p1.NewTranscript(ctx, p1.TranscriptProps{
 			Messages:         self.controller.Messages(),
 			Viewport:         self.viewport,
 			Frame:            self.spinner.Get(ctx),
 			OnToggleThinking: self.controller.ToggleThinking,
 			OnToggleTool:     self.controller.ToggleTool,
 		}),
-		components.NewSidebar(ctx, components.SidebarProps{
+		p1.NewSidebar(ctx, p1.SidebarProps{
 			Messages:     len(self.controller.Messages()),
 			InputTokens:  self.controller.InputTokens(),
 			OutputTokens: self.controller.OutputTokens(),
 			Status:       self.controller.Status(),
 		}),
-		components.NewPrompt(ctx, components.PromptProps{
+		p1.NewPrompt(ctx, p1.PromptProps{
 			State: self.editor,
 			OnKey: self.handleEditorKey,
 		}),
-		components.NewAskDialog(ctx, components.AskDialogProps{
+		p1.NewAskDialog(ctx, p1.AskDialogProps{
 			Open:       self.askOpen,
 			Ask:        self.controller.Ask(),
 			OnMove:     self.moveAsk,
