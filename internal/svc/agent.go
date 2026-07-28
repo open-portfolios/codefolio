@@ -169,6 +169,7 @@ type agentCollector struct {
 
 func (c *agentCollector) VisitMessage(d llm.MessageDelta) error {
 	if d.Content != "" {
+		c.session.AppendDelta(d.Content)
 		c.cb.VisitStream(domain.StreamEvent{Content: d.Content})
 	}
 	return nil
@@ -176,12 +177,14 @@ func (c *agentCollector) VisitMessage(d llm.MessageDelta) error {
 
 func (c *agentCollector) VisitThinking(d llm.ThinkingDelta) error {
 	if d.Content != "" {
+		c.session.AppendThinkingDelta(d.Content)
 		c.cb.VisitThink(domain.ThinkEvent{Content: d.Content})
 	}
 	return nil
 }
 
 func (c *agentCollector) VisitThinkingStart(d llm.ThinkingStartDelta) error {
+	c.session.SetThinkingSignature(d.Signature)
 	c.cb.VisitThinkStart(domain.ThinkStartEvent{Signature: d.Signature})
 	return nil
 }

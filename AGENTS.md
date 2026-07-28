@@ -8,7 +8,7 @@ The project is a work in progress.
 
 | Directory   | Purpose                                                                            |
 | ----------- | ---------------------------------------------------------------------------------- |
-| `cmd/cli/`  | TUI entry point, built with Bubble Tea v2                                          |
+| `cmd/cli/`  | TUI entry point, built with the local TUX framework                               |
 | `cmd/app/`  | Desktop app entry point, Wails WebView; frontend at `cmd/app/web/`                 |
 | `pkg/`      | Reusable, loosely coupled public packages (LLM interface, generic utilities, etc.) |
 | `internal/` | Core agent logic shared by TUI and desktop app                                     |

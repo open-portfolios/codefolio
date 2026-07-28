@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	tea "charm.land/bubbletea/v2"
+	"github.com/cylixlee/tux/app"
+	"github.com/cylixlee/tux/terminal"
 	dotenv "github.com/joho/godotenv"
 
 	"github.com/open-portfolios/codefolio/internal/conf"
@@ -34,10 +36,16 @@ func main() {
 		defer cleanup()
 	}
 
-	p := tea.NewProgram(model)
-	model.Program = p
+	term, err := terminal.New(true)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "terminal error: %v\n", err)
+		os.Exit(1)
+	}
+	defer term.Restore()
 
-	if _, err := p.Run(); err != nil {
+	runtime := app.New(app.AppConfig{Root: model, Terminal: term})
+	model.AttachApp(runtime)
+	if err := runtime.Run(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
