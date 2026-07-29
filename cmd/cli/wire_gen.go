@@ -25,7 +25,7 @@ func InitApp(cfg *conf.Global, askUserCh chan askuser.Request) (*App, func(), er
 		return nil, nil, err
 	}
 	executorFactory := infra.NewExecutorFactory()
-	toolRegistry := tools.NewRegistry(askUserCh, cfg)
+	toolRegistry := tools.NewRegistry(askUserCh)
 	promptService := prompt.NewPromptService()
 	agent := svc.NewAgent(driver, executorFactory, toolRegistry, promptService)
 	domainSession := session.New()

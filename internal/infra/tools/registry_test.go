@@ -49,20 +49,38 @@ func TestRegistryDeferredToolDiscovered(t *testing.T) {
 	}
 }
 
-func TestRegistryOpenAIFormat(t *testing.T) {
+func TestRegistryReturnsCanonicalSchema(t *testing.T) {
 	r := newRegistry()
-	r.protocol = "openai"
 	r.Register(&stubTool{name: "A"})
 	schemas := r.GetAllSchemas()
 	if len(schemas) != 1 {
 		t.Fatal("expected 1 schema")
 	}
 	s := schemas[0]
-	if s["type"] != "function" {
-		t.Errorf("expected type 'function', got %v", s["type"])
+	if s["name"] != "A" {
+		t.Errorf("expected name 'A', got %v", s["name"])
 	}
-	if s["parameters"] == nil {
-		t.Error("expected 'parameters' key in openai format")
+	if s["input_schema"] == nil {
+		t.Error("expected canonical 'input_schema' key")
+	}
+	if _, ok := s["parameters"]; ok {
+		t.Error("registry must not return provider-specific 'parameters' key")
+	}
+}
+
+func TestRegistryDeferredSchemasRemainCanonical(t *testing.T) {
+	r := newRegistry()
+	r.Register(&stubDeferredTool{stubTool{name: "Hidden"}})
+
+	schemas := r.FindDeferredByNames([]string{"Hidden"})
+	if len(schemas) != 1 {
+		t.Fatal("expected one deferred schema")
+	}
+	if schemas[0]["input_schema"] == nil {
+		t.Error("expected canonical 'input_schema' key")
+	}
+	if _, ok := schemas[0]["parameters"]; ok {
+		t.Error("deferred schema must not contain provider-specific 'parameters' key")
 	}
 }
 

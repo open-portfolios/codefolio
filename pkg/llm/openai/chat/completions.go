@@ -42,20 +42,10 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 			}
 		}
 
-		tools := make([]openai.ChatCompletionToolUnionParam, 0, len(conf.Tools))
-		for _, schema := range conf.Tools {
-			name, _ := schema["name"].(string)
-			desc, _ := schema["description"].(string)
-			params, _ := schema["input_schema"].(map[string]any)
-			tools = append(tools, openai.ChatCompletionToolUnionParam{
-				OfFunction: &openai.ChatCompletionFunctionToolParam{
-					Function: openai.FunctionDefinitionParam{
-						Name:        name,
-						Description: param.NewOpt(desc),
-						Parameters:  openai.FunctionParameters(params),
-					},
-				},
-			})
+		tools, err := buildTools(conf.Tools)
+		if err != nil {
+			errChan <- err
+			return
 		}
 
 		stream := c.client.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
@@ -141,6 +131,31 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 		}
 	}()
 	return deltaChan, errChan
+}
+
+func buildTools(schemas []map[string]any) ([]openai.ChatCompletionToolUnionParam, error) {
+	tools := make([]openai.ChatCompletionToolUnionParam, 0, len(schemas))
+	for i, schema := range schemas {
+		name, ok := schema["name"].(string)
+		if !ok || name == "" {
+			return nil, fmt.Errorf("tool schema %d has no name", i)
+		}
+		desc, _ := schema["description"].(string)
+		inputSchema, ok := schema["input_schema"].(map[string]any)
+		if !ok || inputSchema == nil {
+			return nil, fmt.Errorf("tool schema %q has no input_schema", name)
+		}
+		tools = append(tools, openai.ChatCompletionToolUnionParam{
+			OfFunction: &openai.ChatCompletionFunctionToolParam{
+				Function: openai.FunctionDefinitionParam{
+					Name:        name,
+					Description: param.NewOpt(desc),
+					Parameters:  openai.FunctionParameters(inputSchema),
+				},
+			},
+		})
+	}
+	return tools, nil
 }
 
 func extractReasoning(chunk openai.ChatCompletionChunk) string {

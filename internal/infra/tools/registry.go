@@ -3,7 +3,6 @@ package tools
 import (
 	"strings"
 
-	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/bash"
@@ -15,7 +14,6 @@ import (
 type Registry struct {
 	tools           map[string]domain.Tool
 	discoveredTools map[string]bool
-	protocol        string
 }
 
 func newRegistry() *Registry {
@@ -25,10 +23,9 @@ func newRegistry() *Registry {
 	}
 }
 
-func NewRegistry(askUserCh chan askuser.Request, cfg *conf.Global) domain.ToolRegistry {
+func NewRegistry(askUserCh chan askuser.Request) domain.ToolRegistry {
 	fsc := file.NewStateCache()
 	reg := newRegistry()
-	reg.protocol = cfg.Protocol
 	reg.Register(&file.Reader{StateCache: fsc})
 	reg.Register(&file.Writer{StateCache: fsc})
 	reg.Register(&file.Editor{StateCache: fsc})
@@ -77,17 +74,7 @@ func (r *Registry) GetAllSchemas() []map[string]any {
 		if isDeferred(t) && !r.discoveredTools[t.Name()] {
 			continue
 		}
-		base := t.Schema()
-		if r.protocol == "openai" {
-			schemas = append(schemas, map[string]any{
-				"type":        "function",
-				"name":        base["name"],
-				"description": base["description"],
-				"parameters":  base["input_schema"],
-			})
-		} else {
-			schemas = append(schemas, base)
-		}
+		schemas = append(schemas, t.Schema())
 	}
 	return schemas
 }
@@ -122,17 +109,7 @@ func (r *Registry) SearchDeferred(query string, maxResults int) []map[string]any
 		name := strings.ToLower(t.Name())
 		desc := strings.ToLower(t.Description())
 		if strings.Contains(name, query) || strings.Contains(desc, query) {
-			base := t.Schema()
-			if r.protocol == "openai" {
-				matches = append(matches, map[string]any{
-					"type":        "function",
-					"name":        base["name"],
-					"description": base["description"],
-					"parameters":  base["input_schema"],
-				})
-			} else {
-				matches = append(matches, base)
-			}
+			matches = append(matches, t.Schema())
 			if len(matches) >= maxResults {
 				break
 			}
@@ -149,17 +126,7 @@ func (r *Registry) FindDeferredByNames(names []string) []map[string]any {
 	var matches []map[string]any
 	for _, t := range r.tools {
 		if nameSet[strings.ToLower(t.Name())] {
-			base := t.Schema()
-			if r.protocol == "openai" {
-				matches = append(matches, map[string]any{
-					"type":        "function",
-					"name":        base["name"],
-					"description": base["description"],
-					"parameters":  base["input_schema"],
-				})
-			} else {
-				matches = append(matches, base)
-			}
+			matches = append(matches, t.Schema())
 		}
 	}
 	return matches
