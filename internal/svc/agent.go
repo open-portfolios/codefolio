@@ -135,6 +135,7 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Globa
 			for i := range last.ToolCalls {
 				if last.ToolCalls[i].ID == tc.id {
 					last.ToolCalls[i].Input = tc.input
+					cb.VisitToolCall(domain.ToolCallEvent{ID: tc.id, Name: tc.name, Input: tc.input})
 					break
 				}
 			}

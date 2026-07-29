@@ -10,6 +10,7 @@ import (
 	"github.com/cylixlee/tux/terminal"
 	dotenv "github.com/joho/godotenv"
 
+	"github.com/open-portfolios/codefolio/cmd/cli/components"
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
 )
@@ -42,12 +43,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "terminal error: %v\n", err)
 		os.Exit(1)
 	}
-	defer term.Restore()
-
-	runtime := app.New(app.AppConfig{Root: root, Terminal: term})
+	runtime := app.New(app.AppConfig{Root: root, Terminal: term, Background: components.Theme.Background})
 	root.AttachApp(runtime)
-	if err := runtime.Run(context.Background()); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	runErr := runtime.Run(context.Background())
+	term.Restore()
+	fmt.Fprintf(os.Stdout, "\n%s\n\n", components.CodefolioBannerText())
+	if runErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", runErr)
 		os.Exit(1)
 	}
 }

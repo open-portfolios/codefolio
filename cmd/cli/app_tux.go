@@ -9,10 +9,6 @@ import (
 
 func (self *App) Render(ctx renderer.Context) *renderer.Element {
 	return p1.NewShell(ctx, p1.ShellProps{},
-		p1.NewHeader(ctx, p1.HeaderProps{
-			Model:   self.controller.ModelName(),
-			WorkDir: self.workDir,
-		}),
 		p1.NewTranscript(ctx, p1.TranscriptProps{
 			Messages:         self.controller.Messages(),
 			Viewport:         self.viewport,
@@ -21,14 +17,13 @@ func (self *App) Render(ctx renderer.Context) *renderer.Element {
 			OnToggleTool:     self.controller.ToggleTool,
 		}),
 		p1.NewSidebar(ctx, p1.SidebarProps{
-			Messages:     len(self.controller.Messages()),
-			InputTokens:  self.controller.InputTokens(),
-			OutputTokens: self.controller.OutputTokens(),
-			Status:       self.controller.Status(),
+			WorkDir: self.workDir,
 		}),
 		p1.NewPrompt(ctx, p1.PromptProps{
-			State: self.editor,
-			OnKey: self.handleEditorKey,
+			State:   self.editor,
+			OnKey:   self.handleEditorKey,
+			Model:   self.controller.ModelName(),
+			WorkDir: self.workDir,
 		}),
 		p1.NewAskDialog(ctx, p1.AskDialogProps{
 			Open:       self.askOpen,

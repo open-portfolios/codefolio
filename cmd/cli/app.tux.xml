@@ -1,5 +1,4 @@
 <component package="main" name="App">
-    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Header" />
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Transcript" />
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Sidebar" />
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Prompt" />
@@ -7,10 +6,9 @@
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Shell" />
 
     <Shell>
-        <Header model="{self.controller.ModelName()}" workDir="${workDir}" />
         <Transcript messages="{self.controller.Messages()}" viewport="${viewport}" frame="{self.spinner.Get(ctx)}" onToggleThinking="{self.controller.ToggleThinking}" onToggleTool="{self.controller.ToggleTool}" />
-        <Sidebar messages="{len(self.controller.Messages())}" inputTokens="{self.controller.InputTokens()}" outputTokens="{self.controller.OutputTokens()}" status="{self.controller.Status()}" />
-        <Prompt state="${editor}" onKey="${handleEditorKey}" />
+        <Sidebar workDir="${workDir}" />
+        <Prompt state="${editor}" onKey="${handleEditorKey}" model="{self.controller.ModelName()}" workDir="${workDir}" />
         <AskDialog open="${askOpen}" ask="{self.controller.Ask()}" onMove="${moveAsk}" onConfirm="${confirmAsk}" onDefaults="${respondDefaults}" />
     </Shell>
 </component>

@@ -4,12 +4,12 @@ go 1.26.5
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.61.0
-	github.com/cylixlee/tux v0.1.1
+	github.com/cylixlee/tux v0.1.2
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/google/wire v0.7.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-runewidth v0.0.27
-	github.com/openai/openai-go/v3 v3.46.0
+	github.com/openai/openai-go/v3 v3.47.0
 	github.com/wailsapp/wails/v2 v2.13.0
 )
 
@@ -17,7 +17,7 @@ require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
-	github.com/buger/jsonparser v1.3.1 // indirect
+	github.com/buger/jsonparser v1.6.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

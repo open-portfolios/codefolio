@@ -50,12 +50,24 @@ func (v *visitor) VisitThinkStart(domain.ThinkStartEvent) error { return nil }
 func (v *visitor) VisitToolCall(e domain.ToolCallEvent) error {
 	return v.post(func() {
 		if v.active() {
-			if m := v.controller.currentAssistant(); m != nil {
-				m.Tools = append(m.Tools, &Tool{ID: e.ID, Name: e.Name, Input: e.Input})
-				v.controller.invalidate()
-			}
+			_ = v.applyToolCall(e)
 		}
 	})
+}
+
+func (v *visitor) applyToolCall(e domain.ToolCallEvent) error {
+	if m := v.controller.currentAssistant(); m != nil {
+		for _, tool := range m.Tools {
+			if tool.ID == e.ID {
+				tool.Name, tool.Input = e.Name, e.Input
+				v.controller.invalidate()
+				return nil
+			}
+		}
+		m.Tools = append(m.Tools, &Tool{ID: e.ID, Name: e.Name, Input: e.Input})
+		v.controller.invalidate()
+	}
+	return nil
 }
 func (v *visitor) VisitToolResult(e domain.ToolResultEvent) error {
 	return v.post(func() {

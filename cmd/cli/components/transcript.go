@@ -3,7 +3,6 @@ package components
 import (
 	"encoding/json"
 	"strings"
-	"time"
 
 	"github.com/cylixlee/tux/builtin"
 	"github.com/cylixlee/tux/input"
@@ -15,13 +14,12 @@ import (
 )
 
 var (
-	accent  = style.HexColor("#8B5CF6")
-	muted   = style.HexColor("#9CA3AF")
-	primary = style.HexColor("#D1D5DB")
-	errorFg = style.HexColor("#EF4444")
-	userBar = style.HexColor("#818CF8")
-	codeFg  = style.HexColor("#E5E7EB")
-	codeBg  = style.HexColor("#1F2937")
+	accent  = Theme.Accent
+	muted   = Theme.TextMuted
+	primary = Theme.Text
+	errorFg = Theme.Error
+	codeFg  = Theme.Text
+	codeBg  = Theme.BackgroundElement
 	spinner = []string{"|", "/", "-", "\\"}
 )
 
@@ -55,7 +53,7 @@ type visualLine struct {
 }
 
 func NewTranscript(ctx renderer.Context, props TranscriptProps, children ...renderer.Component) *Transcript {
-	return &Transcript{props: props, width: 80}
+	return &Transcript{props: props, width: transcriptWidth(ctx)}
 }
 
 func (t *Transcript) Render(ctx renderer.Context) *renderer.Element {
@@ -104,67 +102,97 @@ func (t *Transcript) Render(ctx renderer.Context) *renderer.Element {
 		}
 		return false
 	})
-	viewport := builtin.CreateViewport(ctx, builtin.ViewportProps{Key: "chat", State: t.props.Viewport, ScrollY: true}, content)
+	viewport := builtin.CreateViewport(ctx, builtin.ViewportProps{Key: "chat", State: t.props.Viewport, ScrollY: true, StickToBottom: true}, content)
 	viewport.SetFlex(1)
 	return viewport
 }
 
+// transcriptWidth mirrors Shell's sidebar split and horizontal inset so the
+// viewport height is measured using the same width used for painting.
+func transcriptWidth(ctx renderer.Context) int {
+	width, _ := ctx.Size()
+	if width > 120 {
+		width -= 42
+	}
+	return max(width-4, 20)
+}
+
 func (t *Transcript) lines(width int) []visualLine {
 	var lines []visualLine
-	for _, message := range t.props.Messages {
-		switch message.Role {
-		case "user":
-			lines = append(lines, wrap("| "+message.Content, width, userBar, 0, "", message.ID, "")...)
-		case "assistant":
-			if message.Thinking != "" {
-				prefix := "+ Thinking"
-				if message.Streaming && message.Content == "" {
-					prefix = spinner[t.props.Frame%len(spinner)] + " Thinking"
-				} else if message.ThinkingExpanded {
-					prefix = "- Thinking"
-				}
-				lines = append(lines, visualLine{text: prefix, fg: muted, attrs: style.Italic, kind: "thinking", messageID: message.ID})
-				if message.ThinkingExpanded {
-					lines = append(lines, wrap("  "+message.Thinking, width, muted, style.Italic, "", message.ID, "")...)
-				}
+	items := projectTimeline(t.props.Messages)
+	for index, item := range items {
+		switch item.Kind {
+		case TimelineUserMessage:
+			for _, line := range userMessageLines(item.Content, width, item.MessageID) {
+				line.bg = Theme.BackgroundPanel
+				lines = append(lines, line)
 			}
-			if message.Content != "" {
-				lines = append(lines, markdown(message.Content, width, message.ID)...)
+		case TimelineAssistantMarkdown:
+			lines = append(lines, markdown(item.Content, width, item.MessageID)...)
+		case TimelineThinking:
+			prefix := "+ Thought"
+			if item.Streaming {
+				prefix = spinner[t.props.Frame%len(spinner)] + " Thinking"
+			} else if item.Expanded {
+				prefix = "- Thought"
 			}
-			if message.Error != "" {
-				lines = append(lines, wrap("Error: "+message.Error, width, errorFg, 0, "", message.ID, "")...)
+			lines = append(lines, visualLine{text: "   " + prefix, fg: Theme.Warning, attrs: style.Italic, kind: "thinking", messageID: item.MessageID})
+			if item.Expanded {
+				lines = append(lines, wrap("     "+item.Content, width, muted, style.Italic, "", item.MessageID, "")...)
 			}
-			for _, tool := range message.Tools {
-				label := toolLabel(tool)
-				if !tool.Done {
-					label = spinner[t.props.Frame%len(spinner)] + " " + label
-				}
-				kind := ""
-				if tool.Done && showOutput(tool.Name) {
-					kind = "tool"
-					if tool.Expanded {
-						label = "- " + label
-					} else {
-						label = "+ " + label
-					}
-				}
-				if tool.Done && tool.Elapsed > 0 {
-					label += " (" + tool.Elapsed.Round(time.Millisecond).String() + ")"
-				}
-				lines = append(lines, wrap("  "+label, width, muted, 0, kind, message.ID, tool.ID)...)
-				if tool.Done && tool.Expanded && tool.Output != "" {
-					fg := muted
-					if tool.IsError {
-						fg = errorFg
-					}
-					lines = append(lines, wrap("    "+tool.Output, width, fg, 0, "", message.ID, "")...)
-				}
+		case TimelineToolActivity:
+			fg, attrs := toolStyle(item.Tool)
+			kind := ""
+			if item.Tool.Done && showOutput(item.Tool.Name) {
+				kind = "tool"
 			}
+			lines = append(lines, wrap("   "+toolSummary(item.Tool, t.props.Frame), width, fg, attrs, kind, item.MessageID, item.ToolID)...)
+		case TimelineToolOutput:
+			fg := Theme.TextMuted
+			if item.Tool.IsError {
+				fg = Theme.Error
+			}
+			for _, line := range previewOutput(item.Content, width, 10, item.MessageID, item.ToolID, fg) {
+				line.bg = Theme.BackgroundPanel
+				lines = append(lines, line)
+			}
+		case TimelineError:
+			lines = append(lines, wrap("   Error: "+item.Content, width, errorFg, 0, "", item.MessageID, "")...)
+		case TimelineTurnMeta:
+			lines = append(lines, visualLine{text: "   ▣  " + strings.ToUpper(item.Content[:1]) + item.Content[1:], fg: Theme.Error, messageID: item.MessageID})
 		}
-		lines = append(lines, visualLine{})
+		if index < len(items)-1 && item.MessageID != items[index+1].MessageID {
+			lines = append(lines, visualLine{})
+		}
 	}
 	if len(lines) == 0 {
-		return []visualLine{{text: "Ready.", fg: muted}}
+		banner := CodefolioBanner()
+		lines = make([]visualLine, 0, len(banner)+2)
+		for _, row := range banner {
+			lines = append(lines, visualLine{text: row, fg: Theme.Primary, attrs: style.Bold})
+		}
+		lines = append(lines, visualLine{})
+		lines = append(lines, visualLine{text: "Ready when you are.", fg: muted})
+		return lines
+	}
+	return trimTrailingBlankLines(lines)
+}
+
+func userMessageLines(content string, width int, messageID string) []visualLine {
+	wrapped := wrap(content, max(width-2, 1), Theme.Text, 0, "", messageID, "")
+	lines := make([]visualLine, 0, len(wrapped)+2)
+	lines = append(lines, visualLine{messageID: messageID})
+	lines = append(lines, wrapped...)
+	lines = append(lines, visualLine{messageID: messageID})
+	for i := range lines {
+		lines[i].text = "┃ " + lines[i].text
+	}
+	return lines
+}
+
+func trimTrailingBlankLines(lines []visualLine) []visualLine {
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1].text) == "" {
+		lines = lines[:len(lines)-1]
 	}
 	return lines
 }
@@ -205,7 +233,7 @@ func markdown(content string, width int, messageID string) []visualLine {
 			continue
 		}
 		if inCode {
-			for _, line := range wrap("  "+source, width, codeFg, 0, "", messageID, "") {
+			for _, line := range wrap("   "+source, width, codeFg, 0, "", messageID, "") {
 				line.bg = codeBg
 				result = append(result, line)
 			}
@@ -225,7 +253,7 @@ func markdown(content string, width int, messageID string) []visualLine {
 		default:
 			text = inlineCode(text)
 		}
-		result = append(result, wrap(text, width, fg, attrs, "", messageID, "")...)
+		result = append(result, wrap("   "+text, width, fg, attrs, "", messageID, "")...)
 	}
 	return result
 }
@@ -254,6 +282,16 @@ func toolLabel(tool *controller.Tool) string {
 	return verb + " " + value
 }
 func showOutput(name string) bool { return name == "Bash" || name == "AskUserQuestion" }
+
+func previewOutput(output string, width, maxLines int, messageID, toolID string, fg style.Color) []visualLine {
+	lines := wrap("     "+output, width, fg, 0, "", messageID, toolID)
+	if len(lines) <= maxLines {
+		return lines
+	}
+	preview := append([]visualLine(nil), lines[:maxLines]...)
+	preview = append(preview, visualLine{text: "     … output truncated", fg: Theme.TextMuted, attrs: style.Dim, messageID: messageID, toolID: toolID})
+	return preview
+}
 func extract(raw, key string) string {
 	var values map[string]any
 	if json.Unmarshal([]byte(raw), &values) != nil {

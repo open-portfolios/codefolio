@@ -35,7 +35,7 @@ func (d *AskDialog) Render(ctx renderer.Context) *renderer.Element {
 			}
 		}
 	}
-	keys := builtin.CreateTextBlock(ctx, builtin.TextBlockProps{Key: "ask-keys", Text: question, Width: 40, Fg: primary})
+	keys := builtin.CreateTextBlock(ctx, builtin.TextBlockProps{Key: "ask-keys", Text: question, Width: 40, Fg: Theme.Text})
 	keys.SetHandleKeyFn(func(ev input.KeyEvent) bool {
 		switch {
 		case ev.Key == input.KeyArrowUp || ev.Rune == 'k':
@@ -51,6 +51,6 @@ func (d *AskDialog) Render(ctx renderer.Context) *renderer.Element {
 		}
 		return true
 	})
-	form := builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "ask-form", Padding: 1, Gap: 1}, keys, builtin.CreateList(ctx, builtin.ListProps{Key: "ask-options", Items: items, Selected: d.props.Ask.Selected, Height: min(max(len(items), 1), 4), Fg: primary}), builtin.CreateTextBlock(ctx, builtin.TextBlockProps{Key: "ask-help", Text: "Up/Down select | Enter confirm | Esc use defaults", Width: 40, Fg: muted, Style: style.Dim}))
-	return builtin.CreateModal(ctx, builtin.ModalProps{Key: "ask-modal", Open: d.props.Open, Backdrop: "dim", CloseOnEscape: false, Title: " Agent question ", Border: builtin.BorderRounded, BorderColor: accent}, form)
+	form := builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "ask-form", Padding: 1, Gap: 1, Bg: Theme.BackgroundPanel}, keys, builtin.CreateList(ctx, builtin.ListProps{Key: "ask-options", Items: items, Selected: d.props.Ask.Selected, Height: min(max(len(items), 1), 4), Fg: Theme.Primary}), builtin.CreateTextBlock(ctx, builtin.TextBlockProps{Key: "ask-help", Text: "Up/Down select  ·  Enter confirm  ·  Esc use defaults", Width: 40, Fg: Theme.TextMuted, Style: style.Dim}))
+	return builtin.CreateModal(ctx, builtin.ModalProps{Key: "ask-modal", Open: d.props.Open, Backdrop: "dim", CloseOnEscape: false, Title: " Agent question ", Border: builtin.BorderRounded, BorderColor: Theme.Accent}, form)
 }

@@ -3,7 +3,6 @@
 package components
 
 import (
-	"fmt"
 	"github.com/cylixlee/tux/builtin"
 	"github.com/cylixlee/tux/renderer"
 	"github.com/cylixlee/tux/style"
@@ -12,36 +11,101 @@ import (
 func (self *Sidebar) Render(ctx renderer.Context) *renderer.Element {
 	return builtin.CreateColumn(ctx, builtin.ColumnProps{
 		Key:   "sidebar-wrap",
-		Width: 28,
+		Width: 42,
+		Gap:   0,
+		Bg:    Theme.BackgroundPanel,
 	},
-		builtin.CreateBorder(ctx, builtin.BorderProps{
-			Key:         "sidebar",
-			Title:       " Session ",
-			BorderType:  builtin.BorderSingle,
-			BorderColor: style.ColorWhite,
+		builtin.CreateColumn(ctx, builtin.ColumnProps{
+			Key:          "sidebar-content",
+			Flex:         1,
+			PaddingTop:   1,
+			PaddingLeft:  2,
+			PaddingRight: 2,
+			Gap:          0,
+			Bg:           Theme.BackgroundPanel,
 		},
-			builtin.CreateColumn(ctx, builtin.ColumnProps{
-				Gap: 1,
-			},
-				builtin.CreateText(ctx, builtin.TextProps{
-					Text:  "SESSION",
-					Style: style.Bold,
-					Fg:    style.ColorWhite,
-				}),
-				builtin.CreateText(ctx, builtin.TextProps{
-					Text: fmt.Sprintf("Messages  %v", self.messages),
-					Fg:   style.ColorWhite,
-				}),
-				builtin.CreateText(ctx, builtin.TextProps{
-					Text: fmt.Sprintf("Input     %v", self.inputTokens),
-					Fg:   style.ColorWhite,
-				}),
-				builtin.CreateText(ctx, builtin.TextProps{
-					Text: fmt.Sprintf("Output    %v", self.outputTokens),
-					Fg:   style.ColorWhite,
-				}),
-				builtin.CreateText(ctx, builtin.TextProps{
-					Text: fmt.Sprintf("Status    %v", self.status),
-					Fg:   style.ColorWhite,
-				}))))
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text:  "Untitled session",
+				Style: style.Bold,
+				Fg:    Theme.Text,
+				Bg:    Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text:  self.workDir,
+				Style: style.Dim,
+				Fg:    Theme.TextMuted,
+				Bg:    Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Bg: Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text:  "Context",
+				Style: style.Bold,
+				Fg:    Theme.Text,
+				Bg:    Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text: "0 tokens",
+				Fg:   Theme.TextMuted,
+				Bg:   Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text: "0% used",
+				Fg:   Theme.TextMuted,
+				Bg:   Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text: "$0.00 spent",
+				Fg:   Theme.TextMuted,
+				Bg:   Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Bg: Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text:  "LSP",
+				Style: style.Bold,
+				Fg:    Theme.Text,
+				Bg:    Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text: "• 1 server connected",
+				Fg:   Theme.Success,
+				Bg:   Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Bg: Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text:  "Todo",
+				Style: style.Bold,
+				Fg:    Theme.Text,
+				Bg:    Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text: "○ Inspect the workspace",
+				Fg:   Theme.TextMuted,
+				Bg:   Theme.BackgroundPanel,
+			}),
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text: "○ Plan the next change",
+				Fg:   Theme.TextMuted,
+				Bg:   Theme.BackgroundPanel,
+			})),
+		builtin.CreateRow(ctx, builtin.RowProps{
+			Key:          "sidebar-footer",
+			PaddingLeft:  2,
+			PaddingRight: 2,
+			Bg:           Theme.BackgroundPanel,
+		},
+			builtin.CreateText(ctx, builtin.TextProps{
+				Text:  "● Codefolio",
+				Style: style.Dim,
+				Fg:    Theme.TextMuted,
+				Bg:    Theme.BackgroundPanel,
+			})),
+		builtin.CreateText(ctx, builtin.TextProps{
+			Bg: Theme.BackgroundPanel,
+		}))
 }

@@ -1,7 +1,0 @@
-<component package="components" name="Header">
-    <row key="header" gap="2">
-        <text text="Codefolio" style="bold" fg="magenta" />
-        <text text="${model}" fg="white" />
-        <text text="${workDir}" style="dim" fg="white" />
-    </row>
-</component>
