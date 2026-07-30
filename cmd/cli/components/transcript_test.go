@@ -21,6 +21,18 @@ func TestWrapPreservesContentAndWidth(t *testing.T) {
 	}
 }
 
+func TestUserMessageRailUsesOneForegroundColor(t *testing.T) {
+	lines := userMessageLines("Hello", 40, "user-1")
+	if len(lines) != 3 {
+		t.Fatalf("line count = %d, want 3", len(lines))
+	}
+	for index, line := range lines {
+		if line.fg != Theme.Text {
+			t.Fatalf("line %d rail foreground = %#v, want %#v", index, line.fg, Theme.Text)
+		}
+	}
+}
+
 func TestToolLabelHandlesKnownAndUnknownTools(t *testing.T) {
 	if got := toolLabel(&controller.Tool{Name: "Bash", Input: `{"command":"go test ./..."}`}); got != "Bash go test ./..." {
 		t.Fatalf("Bash label = %q", got)

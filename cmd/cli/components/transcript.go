@@ -200,9 +200,9 @@ func (t *Transcript) lines(width int) []visualLine {
 func userMessageLines(content string, width int, messageID string) []visualLine {
 	wrapped := wrap(content, max(width-2, 1), Theme.Text, 0, "", messageID, "")
 	lines := make([]visualLine, 0, len(wrapped)+2)
-	lines = append(lines, visualLine{messageID: messageID})
+	lines = append(lines, visualLine{fg: Theme.Text, messageID: messageID})
 	lines = append(lines, wrapped...)
-	lines = append(lines, visualLine{messageID: messageID})
+	lines = append(lines, visualLine{fg: Theme.Text, messageID: messageID})
 	for i := range lines {
 		lines[i].text = "┃ " + lines[i].text
 	}
