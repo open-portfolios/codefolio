@@ -114,6 +114,10 @@ func (a *App) MCPStatus(ctx renderer.Context) components.MCPStatus {
 	return a.mcpStatus.Get(ctx)
 }
 
+func (a *App) Profile() string {
+	return a.controller.Profile()
+}
+
 func mcpStatusFor(summary mcp.Summary, connecting bool) components.MCPStatus {
 	if summary.Configured == 0 {
 		return components.MCPStatus{Label: "○ No servers configured", Color: components.Theme.TextMuted}
@@ -166,6 +170,10 @@ func (a *App) editorKey(event input.KeyEvent) bool {
 		a.editor.Set(builtin.TextareaState{PreferredColumn: -1, CursorOn: true})
 		return true
 	}
+	if event.Key == input.KeyTab {
+		a.toggleProfile()
+		return true
+	}
 	if event.Key == input.KeyEnter && event.Modifiers == 0 {
 		content := strings.TrimSpace(a.editor.Value().Value)
 		if content == "" {
@@ -186,6 +194,14 @@ func (a *App) editorKey(event input.KeyEvent) bool {
 		return true
 	}
 	return false
+}
+
+func (a *App) toggleProfile() {
+	if a.controller.Mode() == svc.ModePlan {
+		a.controller.SetMode(svc.ModeDefault)
+		return
+	}
+	a.controller.SetMode(svc.ModePlan)
 }
 
 func (a *App) setEditor(value string) {

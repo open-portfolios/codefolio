@@ -51,21 +51,38 @@ func (b *Broker) Authorize(ctx context.Context, invocation domain.ToolInvocation
 	if err := ctx.Err(); err != nil {
 		return domain.PermissionDecision{Effect: domain.PermissionDeny, Reason: err.Error()}
 	}
-	if isProtectedPath(invocation) {
-		return domain.PermissionDecision{Effect: domain.PermissionDeny, Reason: "protected Codefolio configuration"}
-	}
 	if invocation.Name == "Bash" && isDangerousCommand(stringArg(invocation.Args, "command")) {
 		return domain.PermissionDecision{Effect: domain.PermissionDeny, Reason: "dangerous command blocked"}
+	}
+	if invocation.Profile == domain.ProfilePlan {
+		return b.planDecision(ctx, invocation)
+	}
+
+	if isOutsideWorkspace(invocation) {
+		return b.requestApproval(ctx, invocation, "external workspace access requires approval")
+	}
+	if isSensitiveInvocation(invocation) {
+		return b.requestApproval(ctx, invocation, "sensitive Codefolio configuration requires approval")
+	}
+	if invocation.Category == domain.CategoryRead || invocation.Category == domain.CategoryWrite || isMCPTool(invocation) {
+		return domain.PermissionDecision{Effect: domain.PermissionAllow, Reason: "allowed by build profile"}
+	}
+	if invocation.Name == "Bash" && isFileModifyingCommand(stringArg(invocation.Args, "command")) {
+		return domain.PermissionDecision{Effect: domain.PermissionAllow, Reason: "file-modifying command allowed by build profile"}
 	}
 
 	key := approvalKey(invocation)
 	if b.isGranted(key) {
 		return domain.PermissionDecision{Effect: domain.PermissionAllow, Reason: "allowed for this session"}
 	}
-	if invocation.Category == domain.CategoryRead && !isOutsideWorkspace(invocation) {
-		return domain.PermissionDecision{Effect: domain.PermissionAllow, Reason: "read-only tool"}
-	}
+	return b.requestApproval(ctx, invocation, "")
+}
 
+func (b *Broker) requestApproval(ctx context.Context, invocation domain.ToolInvocation, reason string) domain.PermissionDecision {
+	key := approvalKey(invocation)
+	if b.isGranted(key) {
+		return domain.PermissionDecision{Effect: domain.PermissionAllow, Reason: "allowed for this session"}
+	}
 	request := &Request{
 		ID:       invocation.ID,
 		Key:      key,
@@ -73,7 +90,7 @@ func (b *Broker) Authorize(ctx context.Context, invocation domain.ToolInvocation
 		ToolName: invocation.Name,
 		Category: invocation.Category,
 		Summary:  summarize(invocation),
-		Detail:   detail(invocation),
+		Detail:   detail(invocation, reason),
 		response: make(chan Decision, 1),
 	}
 	select {
@@ -110,13 +127,14 @@ func (b *Broker) isGranted(key string) bool {
 }
 
 func approvalKey(invocation domain.ToolInvocation) string {
+	prefix := string(invocation.Profile) + ":"
 	if path := invocationPath(invocation); path != "" {
-		return invocation.Name + ":" + path
+		return prefix + invocation.Name + ":" + path
 	}
 	if command := stringArg(invocation.Args, "command"); command != "" {
-		return invocation.Name + ":" + command
+		return prefix + invocation.Name + ":" + command
 	}
-	return invocation.Name
+	return prefix + invocation.Name
 }
 
 func summarize(invocation domain.ToolInvocation) string {
@@ -129,7 +147,10 @@ func summarize(invocation domain.ToolInvocation) string {
 	return invocation.Name
 }
 
-func detail(invocation domain.ToolInvocation) string {
+func detail(invocation domain.ToolInvocation, reason string) string {
+	if reason != "" {
+		return reason
+	}
 	switch invocation.Category {
 	case domain.CategoryWrite:
 		return "This tool can change files."
@@ -138,6 +159,55 @@ func detail(invocation domain.ToolInvocation) string {
 	default:
 		return "This action needs your approval."
 	}
+}
+
+func (b *Broker) planDecision(ctx context.Context, invocation domain.ToolInvocation) domain.PermissionDecision {
+	if invocation.Category == domain.CategoryRead {
+		if isOutsideWorkspace(invocation) {
+			return b.requestApproval(ctx, invocation, "external workspace access requires approval")
+		}
+		return domain.PermissionDecision{Effect: domain.PermissionAllow, Reason: "allowed by plan profile"}
+	}
+	if isPlanFile(invocation) {
+		return domain.PermissionDecision{Effect: domain.PermissionAllow, Reason: "plan artifact write allowed"}
+	}
+	return domain.PermissionDecision{Effect: domain.PermissionDeny, Reason: "plan profile blocks this action"}
+}
+
+func isPlanFile(invocation domain.ToolInvocation) bool {
+	if invocation.Category != domain.CategoryWrite || invocation.PlanFile == "" {
+		return false
+	}
+	path := invocationPath(invocation)
+	planFile, err := filepath.Abs(filepath.Clean(invocation.PlanFile))
+	return err == nil && path != "" && path == planFile
+}
+
+func isMCPTool(invocation domain.ToolInvocation) bool {
+	return strings.HasPrefix(invocation.Name, "mcp__")
+}
+
+func isFileModifyingCommand(command string) bool {
+	command = strings.ToLower(command)
+	for _, token := range []string{
+		"gofmt -w",
+		"go fmt",
+		"prettier --write",
+		"prettier -w",
+		"eslint --fix",
+		"sed -i",
+		"touch ",
+		"mkdir ",
+		"cp ",
+		"mv ",
+		"rm ",
+		">",
+	} {
+		if strings.Contains(command, token) {
+			return true
+		}
+	}
+	return false
 }
 
 func invocationPath(invocation domain.ToolInvocation) string {
@@ -160,6 +230,9 @@ func invocationPath(invocation domain.ToolInvocation) string {
 
 func isOutsideWorkspace(invocation domain.ToolInvocation) bool {
 	path := invocationPath(invocation)
+	if path == "" && invocation.Name == "Bash" {
+		return bashReferencesExternalPath(stringArg(invocation.Args, "command"), invocation.WorkDir)
+	}
 	if path == "" {
 		return false
 	}
@@ -169,6 +242,20 @@ func isOutsideWorkspace(invocation domain.ToolInvocation) bool {
 	}
 	rel, err := filepath.Rel(workDir, path)
 	return err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func bashReferencesExternalPath(command, workDir string) bool {
+	for field := range strings.FieldsSeq(command) {
+		path := strings.Trim(field, "'\";|&()")
+		if !filepath.IsAbs(path) {
+			continue
+		}
+		invocation := domain.ToolInvocation{Args: map[string]any{"path": path}, WorkDir: workDir}
+		if isOutsideWorkspace(invocation) {
+			return true
+		}
+	}
+	return false
 }
 
 func isProtectedPath(invocation domain.ToolInvocation) bool {
@@ -185,6 +272,16 @@ func isProtectedPath(invocation domain.ToolInvocation) bool {
 	}
 	config := filepath.Join(workDir, ".codefolio", "config.json")
 	return path == config
+}
+
+func isSensitiveInvocation(invocation domain.ToolInvocation) bool {
+	if isProtectedPath(invocation) {
+		return true
+	}
+	if invocation.Name != "Bash" {
+		return false
+	}
+	return strings.Contains(strings.ReplaceAll(stringArg(invocation.Args, "command"), "\\", "/"), ".codefolio/config.json")
 }
 
 func stringArg(args map[string]any, key string) string {

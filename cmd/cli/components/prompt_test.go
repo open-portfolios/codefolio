@@ -39,3 +39,12 @@ func TestDisabledComposerShowsStreamingStateAndCannotFocus(t *testing.T) {
 		t.Fatalf("disabled composer focused %#v", focused)
 	}
 }
+
+func TestPromptShowsOnlyProfileAndModel(t *testing.T) {
+	prompt := NewPrompt(renderer.Context{}, PromptProps{State: state.New(builtin.TextareaState{}), Model: "test-model", Profile: "build"})
+	root := prompt.Render(renderer.Context{SizeFn: func() (int, int) { return 80, 24 }})
+	meta := root.Children()[0].Children()[0].Children()[1]
+	if got := len(meta.Children()); got != 3 {
+		t.Fatalf("composer metadata item count = %d, want profile, separator, and model", got)
+	}
+}

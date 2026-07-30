@@ -12,6 +12,7 @@ type PromptProps struct {
 	State    *state.State[builtin.TextareaState]
 	OnKey    func(input.KeyEvent) bool
 	Model    string
+	Profile  string
 	WorkDir  string
 	Disabled bool
 	Focus    bool
@@ -20,13 +21,14 @@ type Prompt struct {
 	state    *state.State[builtin.TextareaState]
 	onKey    func(input.KeyEvent) bool
 	model    string
+	profile  string
 	workDir  string
 	disabled bool
 	focus    bool
 }
 
 func NewPrompt(ctx renderer.Context, props PromptProps, children ...renderer.Component) *Prompt {
-	return &Prompt{state: props.State, onKey: props.OnKey, model: props.Model, workDir: props.WorkDir, disabled: props.Disabled, focus: props.Focus}
+	return &Prompt{state: props.State, onKey: props.OnKey, model: props.Model, profile: props.Profile, workDir: props.WorkDir, disabled: props.Disabled, focus: props.Focus}
 }
 
 func (p *Prompt) Render(ctx renderer.Context) *renderer.Element {
@@ -60,18 +62,15 @@ func (p *Prompt) Render(ctx renderer.Context) *renderer.Element {
 	}
 	inputRow := builtin.CreateRow(ctx, builtin.RowProps{Key: "composer-input", Height: inputHeight, Bg: Theme.BackgroundElement}, textarea)
 	metaFg, metaAttrs := Theme.Text, style.Attr(0)
-	buildFg, highFg, highAttrs := Theme.Primary, Theme.Warning, style.Bold
+	profileFg := ProfileColor(p.profile)
 	if p.disabled {
-		metaFg, buildFg, highFg = Theme.TextMuted, Theme.TextMuted, Theme.TextMuted
-		metaAttrs, highAttrs = style.Dim, style.Dim
+		metaFg, profileFg = Theme.TextMuted, Theme.TextMuted
+		metaAttrs = style.Dim
 	}
 	meta := builtin.CreateRow(ctx, builtin.RowProps{Key: "composer-meta", Gap: 1, Bg: Theme.BackgroundElement},
-		builtin.CreateText(ctx, builtin.TextProps{Text: "Build", Fg: buildFg, Bg: Theme.BackgroundElement, Style: metaAttrs}),
+		builtin.CreateText(ctx, builtin.TextProps{Text: profileLabel(p.profile), Fg: profileFg, Bg: Theme.BackgroundElement, Style: metaAttrs}),
 		builtin.CreateText(ctx, builtin.TextProps{Text: "·", Fg: Theme.TextMuted, Bg: Theme.BackgroundElement}),
 		builtin.CreateText(ctx, builtin.TextProps{Text: p.model, Fg: metaFg, Bg: Theme.BackgroundElement, Style: metaAttrs}),
-		builtin.CreateText(ctx, builtin.TextProps{Text: "DeepSeek", Fg: Theme.TextMuted, Bg: Theme.BackgroundElement, Style: metaAttrs}),
-		builtin.CreateText(ctx, builtin.TextProps{Text: "·", Fg: Theme.TextMuted, Bg: Theme.BackgroundElement}),
-		builtin.CreateText(ctx, builtin.TextProps{Text: "High", Fg: highFg, Bg: Theme.BackgroundElement, Style: highAttrs}),
 	)
 	composer := builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "composer", Padding: 1, Gap: 1, Bg: Theme.BackgroundElement}, inputRow, meta)
 	if !p.disabled {
@@ -86,11 +85,11 @@ func (p *Prompt) Render(ctx renderer.Context) *renderer.Element {
 	status := builtin.CreateRow(ctx, builtin.RowProps{Key: "prompt-status", Gap: 1, Bg: Theme.Background},
 		builtin.CreateText(ctx, builtin.TextProps{Text: p.workDir, Fg: Theme.TextMuted, Bg: Theme.Background, Style: style.Dim}),
 		builtin.CreateText(ctx, builtin.TextProps{Text: "·", Fg: Theme.TextMuted, Bg: Theme.Background, Style: style.Dim}),
-		builtin.CreateText(ctx, builtin.TextProps{Text: "Ctrl+P commands", Fg: Theme.TextMuted, Bg: Theme.Background}),
+		builtin.CreateText(ctx, builtin.TextProps{Text: "Tab switch mode", Fg: Theme.TextMuted, Bg: Theme.Background}),
 	)
 	separator := builtin.CreateText(ctx, builtin.TextProps{Key: "prompt-separator", Text: "", Bg: Theme.Background})
 	bottomSpace := builtin.CreateText(ctx, builtin.TextProps{Key: "prompt-bottom-space", Text: "", Bg: Theme.Background})
-	return builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "prompt"}, NewRail(ctx, RailProps{Disabled: p.disabled}, composer), separator, status, bottomSpace)
+	return builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "prompt"}, NewRail(ctx, RailProps{Disabled: p.disabled, Color: ProfileColor(p.profile)}, composer), separator, status, bottomSpace)
 }
 
 func placeholder(disabled bool) string {
@@ -105,4 +104,11 @@ func promptTextColor(disabled bool) style.Color {
 		return Theme.TextMuted
 	}
 	return Theme.Text
+}
+
+func profileLabel(profile string) string {
+	if profile == "plan" {
+		return "Plan"
+	}
+	return "Build"
 }

@@ -21,14 +21,26 @@ func TestWrapPreservesContentAndWidth(t *testing.T) {
 	}
 }
 
-func TestUserMessageRailUsesOneForegroundColor(t *testing.T) {
-	lines := userMessageLines("Hello", 40, "user-1")
+func TestUserMessageRailUsesSentProfileColor(t *testing.T) {
+	lines := userMessageLines("Hello", 40, "user-1", "build")
 	if len(lines) != 3 {
 		t.Fatalf("line count = %d, want 3", len(lines))
 	}
 	for index, line := range lines {
 		if line.fg != Theme.Text {
-			t.Fatalf("line %d rail foreground = %#v, want %#v", index, line.fg, Theme.Text)
+			t.Fatalf("line %d text foreground = %#v, want %#v", index, line.fg, Theme.Text)
+		}
+		if line.railFg != Theme.Secondary {
+			t.Fatalf("line %d rail foreground = %#v, want %#v", index, line.railFg, Theme.Secondary)
+		}
+	}
+}
+
+func TestUserMessagePlanRailUsesPrimaryColor(t *testing.T) {
+	lines := userMessageLines("Hello", 40, "user-1", "plan")
+	for index, line := range lines {
+		if line.railFg != Theme.Primary {
+			t.Fatalf("line %d rail foreground = %#v, want %#v", index, line.railFg, Theme.Primary)
 		}
 	}
 }
@@ -357,7 +369,7 @@ func TestTranscriptTrimsTrailingMarkdownNewlines(t *testing.T) {
 }
 
 func TestUserMessageRailCoversEveryVisualLine(t *testing.T) {
-	lines := userMessageLines("first\nsecond", 20, "user-1")
+	lines := userMessageLines("first\nsecond", 20, "user-1", "build")
 	if len(lines) != 4 {
 		t.Fatalf("line count = %d, want two content lines plus vertical padding", len(lines))
 	}

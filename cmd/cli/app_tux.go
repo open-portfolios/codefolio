@@ -24,6 +24,7 @@ func (self *App) Render(ctx renderer.Context) *renderer.Element {
 			State:    self.editor,
 			OnKey:    self.handleEditorKey,
 			Model:    self.controller.ModelName(),
+			Profile:  self.Profile(),
 			WorkDir:  self.workDir,
 			Disabled: self.ComposerDisabled(),
 			Focus:    self.FocusComposer(),

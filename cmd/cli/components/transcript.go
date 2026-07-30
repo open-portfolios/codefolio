@@ -45,6 +45,7 @@ type clickRegion struct {
 type visualLine struct {
 	text      string
 	fg        style.Color
+	railFg    style.Color
 	bg        style.Color
 	attrs     style.Attr
 	kind      string
@@ -88,7 +89,12 @@ func (t *Transcript) Render(ctx renderer.Context) *renderer.Element {
 			if line.bg != (style.Color{}) {
 				draw.Fill(renderer.Rect{X: box.X, Y: box.Y + row, Width: box.Width, Height: 1}, renderer.Cell{Rune: ' ', Style: style.Style{Bg: line.bg}})
 			}
-			draw.WriteStringWide(box.X, box.Y+row, line.text, style.Style{Fg: line.fg, Bg: line.bg, Attrs: line.attrs})
+			if line.railFg != (style.Color{}) && strings.HasPrefix(line.text, "┃ ") {
+				draw.WriteStringWide(box.X, box.Y+row, "┃", style.Style{Fg: line.railFg, Bg: line.bg, Attrs: line.attrs})
+				draw.WriteStringWide(box.X+1, box.Y+row, line.text[len("┃"):], style.Style{Fg: line.fg, Bg: line.bg, Attrs: line.attrs})
+			} else {
+				draw.WriteStringWide(box.X, box.Y+row, line.text, style.Style{Fg: line.fg, Bg: line.bg, Attrs: line.attrs})
+			}
 			if line.kind != "" {
 				current.regions = append(current.regions, clickRegion{rect: renderer.Rect{X: draw.Origin.X + box.X, Y: draw.Origin.Y + box.Y + row, Width: runewidth.StringWidth(line.text), Height: 1}, kind: line.kind, messageID: line.messageID, toolID: line.toolID})
 			}
@@ -149,7 +155,7 @@ func (t *Transcript) lines(width int) []visualLine {
 	for index, item := range items {
 		switch item.Kind {
 		case TimelineUserMessage:
-			for _, line := range userMessageLines(item.Content, width, item.MessageID) {
+			for _, line := range userMessageLines(item.Content, width, item.MessageID, item.Profile) {
 				line.bg = Theme.BackgroundPanel
 				lines = append(lines, line)
 			}
@@ -219,7 +225,7 @@ func groupFor(item TimelineItem) timelineGroup {
 	}
 }
 
-func userMessageLines(content string, width int, messageID string) []visualLine {
+func userMessageLines(content string, width int, messageID, profile string) []visualLine {
 	wrapped := wrap(content, max(width-2, 1), Theme.Text, 0, "", messageID, "")
 	lines := make([]visualLine, 0, len(wrapped)+2)
 	lines = append(lines, visualLine{fg: Theme.Text, messageID: messageID})
@@ -227,6 +233,7 @@ func userMessageLines(content string, width int, messageID string) []visualLine 
 	lines = append(lines, visualLine{fg: Theme.Text, messageID: messageID})
 	for i := range lines {
 		lines[i].text = "┃ " + lines[i].text
+		lines[i].railFg = ProfileColor(profile)
 	}
 	return lines
 }

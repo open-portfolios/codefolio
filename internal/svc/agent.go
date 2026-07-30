@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
@@ -39,6 +40,7 @@ type Agent struct {
 func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistry domain.ToolRegistry, promptService domain.PromptService) *Agent {
 	return &Agent{
 		MaxIterations: defaultMaxIterations,
+		Mode:          ModePlan,
 		driver:        driver,
 		execFactory:   execFactory,
 		toolRegistry:  toolRegistry,
@@ -143,8 +145,9 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struc
 		}
 
 		exec := a.execFactory(a.toolRegistry, a.WorkDir)
+		executionCtx := domain.WithExecutionProfile(ctx, a.executionProfile(), a.planFilePath())
 		for _, tc := range toolCalls {
-			exec.Submit(ctx, tc.id, tc.name, tc.input)
+			exec.Submit(executionCtx, tc.id, tc.name, tc.input)
 		}
 
 		results := exec.CollectResults()
@@ -156,6 +159,20 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struc
 		cb.VisitTurnComplete(domain.TurnCompleteEvent{Turn: iter})
 		session.StartAssistantMessage()
 	}
+}
+
+func (a *Agent) executionProfile() domain.ExecutionProfile {
+	if a.Mode == ModePlan {
+		return domain.ProfilePlan
+	}
+	return domain.ProfileBuild
+}
+
+func (a *Agent) planFilePath() string {
+	if a.WorkDir == "" {
+		return DefaultPlanFilePath
+	}
+	return filepath.Join(a.WorkDir, DefaultPlanFilePath)
 }
 
 type agentCollector struct {

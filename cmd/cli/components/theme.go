@@ -30,3 +30,10 @@ var Theme = struct {
 	Warning:           style.HexColor("#F5A742"),
 	Error:             style.HexColor("#E06C75"),
 }
+
+func ProfileColor(profile string) style.Color {
+	if profile == "plan" {
+		return Theme.Primary
+	}
+	return Theme.Secondary
+}

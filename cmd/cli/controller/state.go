@@ -37,6 +37,7 @@ type Tool struct {
 type Message struct {
 	ID               string
 	Role             string
+	Profile          string
 	Content          string
 	Thinking         string
 	ThinkingExpanded bool
@@ -97,6 +98,27 @@ func (c *Controller) Attach(runtime *app.App, invalidate func(), setAskOpen func
 
 func (c *Controller) ModelName() string { return c.cfg.Model }
 
+func (c *Controller) Mode() svc.AgentMode {
+	if c.agent == nil {
+		return svc.ModePlan
+	}
+	return c.agent.Mode
+}
+
+func (c *Controller) SetMode(mode svc.AgentMode) bool {
+	if c.Running() {
+		return false
+	}
+	if c.agent == nil {
+		return false
+	}
+	c.agent.Mode = mode
+	if c.invalidate != nil {
+		c.invalidate()
+	}
+	return true
+}
+
 func (c *Controller) Messages() []*Message { return c.messages }
 
 func (c *Controller) Status() string {
@@ -127,7 +149,7 @@ func (c *Controller) Start(content string, editor *builtin.TextareaState) {
 	c.historyAt, c.draft = len(c.history), ""
 	c.session.AddUserMessage(content)
 	c.session.StartAssistantMessage()
-	c.messages = append(c.messages, &Message{ID: fmt.Sprintf("user-%d", len(c.messages)+1), Role: "user", Content: content})
+	c.messages = append(c.messages, &Message{ID: fmt.Sprintf("user-%d", len(c.messages)+1), Role: "user", Profile: c.Profile(), Content: content})
 	c.messages = append(c.messages, &Message{ID: fmt.Sprintf("assistant-%d", len(c.messages)+1), Role: "assistant", Streaming: true})
 	c.streaming, c.cancelling = StreamRunning, false
 	c.runID++
@@ -154,6 +176,13 @@ func (c *Controller) Start(content string, editor *builtin.TextareaState) {
 		}
 	}()
 	c.invalidate()
+}
+
+func (c *Controller) Profile() string {
+	if c.Mode() == svc.ModePlan {
+		return "plan"
+	}
+	return "build"
 }
 
 func (c *Controller) Cancel() {

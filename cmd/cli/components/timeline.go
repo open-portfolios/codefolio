@@ -27,6 +27,7 @@ type TimelineItem struct {
 	MessageID string
 	ToolID    string
 	Content   string
+	Profile   string
 	Tool      *controller.Tool
 	Streaming bool
 	Expanded  bool
@@ -37,7 +38,7 @@ func projectTimeline(messages []*controller.Message) []TimelineItem {
 	for _, message := range messages {
 		switch message.Role {
 		case "user":
-			items = append(items, TimelineItem{Kind: TimelineUserMessage, MessageID: message.ID, Content: message.Content})
+			items = append(items, TimelineItem{Kind: TimelineUserMessage, MessageID: message.ID, Content: message.Content, Profile: message.Profile})
 		case "assistant":
 			if message.Thinking != "" {
 				items = append(items, TimelineItem{Kind: TimelineThinking, MessageID: message.ID, Content: message.Thinking, Streaming: message.Streaming, Expanded: message.ThinkingExpanded})

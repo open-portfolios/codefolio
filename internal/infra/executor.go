@@ -113,7 +113,8 @@ func (e *executor) execute(ctx context.Context, toolID, toolName, input string) 
 		return toolExecResult{toolID: toolID, toolName: toolName, output: "Error: tool execution cancelled", isError: true, outcome: domain.ToolOutcomeCancelled, elapsed: time.Since(start)}
 	}
 	if e.authorizer != nil {
-		decision := e.authorizer.Authorize(ctx, domain.ToolInvocation{ID: toolID, Name: toolName, Category: t.Category(), Input: input, Args: args, WorkDir: e.workDir})
+		profile, planFile := domain.ExecutionProfileFromContext(ctx)
+		decision := e.authorizer.Authorize(ctx, domain.ToolInvocation{ID: toolID, Name: toolName, Category: t.Category(), Input: input, Args: args, WorkDir: e.workDir, Profile: profile, PlanFile: planFile})
 		if decision.Effect != domain.PermissionAllow {
 			outcome := domain.ToolOutcomePermissionDenied
 			if decision.Reason == "approval cancelled" {

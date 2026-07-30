@@ -28,6 +28,7 @@ func TestPromptFillsComposerSurfaceAndDoesNotResetBackground(t *testing.T) {
 	prompt := NewPrompt(ctx, PromptProps{
 		State:   state.New(builtin.TextareaState{}),
 		Model:   "test-model",
+		Profile: "build",
 		WorkDir: "~/workspace",
 	})
 	buffer := surfaceBuffer(60, 9)
@@ -41,7 +42,7 @@ func TestPromptFillsComposerSurfaceAndDoesNotResetBackground(t *testing.T) {
 	}
 	for _, row := range []int{0, 1, 2, 3, 4} {
 		cell := buffer.Cells[row*buffer.Width]
-		if cell.Rune != '┃' || cell.Style.Fg != Theme.Primary {
+		if cell.Rune != '┃' || cell.Style.Fg != Theme.Secondary {
 			t.Fatalf("composer rail cell (0, %d) = %#v, want colored rail", row, cell)
 		}
 	}
@@ -58,6 +59,16 @@ func TestPromptFillsComposerSurfaceAndDoesNotResetBackground(t *testing.T) {
 	ansi := strings.Join(buffer.Diff(renderer.NewCellBuffer(60, 9)), "")
 	if strings.Contains(ansi, "\x1b[49m") {
 		t.Fatalf("prompt output contains a default-background reset: %q", ansi)
+	}
+}
+
+func TestPromptPlanRailUsesPrimaryColor(t *testing.T) {
+	ctx := renderer.Context{SizeFn: func() (int, int) { return 60, 9 }}
+	prompt := NewPrompt(ctx, PromptProps{State: state.New(builtin.TextareaState{}), Profile: "plan"})
+	buffer := surfaceBuffer(60, 9)
+	prompt.Render(ctx).Draw(buffer, 0, 0, 60, 9)
+	if cell := buffer.Cells[0]; cell.Rune != '┃' || cell.Style.Fg != Theme.Primary {
+		t.Fatalf("plan composer rail = %#v, want primary rail", cell)
 	}
 }
 

@@ -5,7 +5,10 @@ import (
 	"github.com/cylixlee/tux/style"
 )
 
-type RailProps struct{ Disabled bool }
+type RailProps struct {
+	Disabled bool
+	Color    style.Color
+}
 type Rail struct {
 	props    RailProps
 	children []renderer.Component
@@ -19,15 +22,20 @@ func (r *Rail) Render(ctx renderer.Context) *renderer.Element {
 	e := &renderer.Element{}
 	e.SetKey("composer-rail")
 	e.SetTag("composer-rail")
+	e.SetProps(r.props)
 	e.SetChildren(renderer.RenderChildren(ctx, r.children...))
 	for _, child := range e.Children() {
 		e.SetLayoutWidth(max(e.LayoutWidth(), child.LayoutWidth()+1))
 		e.SetLayoutHeight(max(e.LayoutHeight(), child.LayoutHeight()))
 	}
 	e.SetPaintFn(func(draw renderer.DrawContext, box renderer.Rect) {
+		props := renderer.Props[RailProps](e)
 		draw.Fill(box, renderer.Cell{Rune: ' ', Style: style.Style{Bg: Theme.BackgroundElement}})
-		railFg, railAttrs := Theme.Primary, style.Bold
-		if r.props.Disabled {
+		railFg, railAttrs := props.Color, style.Bold
+		if railFg == (style.Color{}) {
+			railFg = Theme.Secondary
+		}
+		if props.Disabled {
 			railFg, railAttrs = Theme.TextMuted, style.Dim
 		}
 		for row := range box.Height {

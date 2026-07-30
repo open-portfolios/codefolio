@@ -7,6 +7,8 @@ import (
 	"github.com/cylixlee/tux/input"
 	"github.com/cylixlee/tux/state"
 	"github.com/open-portfolios/codefolio/cmd/cli/controller"
+	"github.com/open-portfolios/codefolio/internal/conf"
+	"github.com/open-portfolios/codefolio/internal/svc"
 )
 
 func TestEditorCtrlCClearsOnlyNonEmptyInput(t *testing.T) {
@@ -43,5 +45,19 @@ func TestComposerFocusRestoresOnlyWhenTimelineFollowsEnd(t *testing.T) {
 	}
 	if root.FocusComposer() {
 		t.Fatal("composer must not reclaim focus when the timeline is scrolled away from the end")
+	}
+}
+
+func TestComposerTabSwitchesProfiles(t *testing.T) {
+	agent := &svc.Agent{Mode: svc.ModePlan}
+	root := &App{editor: state.New(builtin.TextareaState{PreferredColumn: -1}), controller: controller.New(&conf.Struct{}, agent, nil, nil, nil)}
+	if !root.editorKey(input.KeyEvent{Key: input.KeyTab}) || agent.Mode != svc.ModeDefault {
+		t.Fatalf("Tab should select build mode, got %v", agent.Mode)
+	}
+	if !root.editorKey(input.KeyEvent{Key: input.KeyTab}) || agent.Mode != svc.ModePlan {
+		t.Fatalf("second Tab should select plan mode, got %v", agent.Mode)
+	}
+	if root.editor.Value().Value != "" {
+		t.Fatalf("profile switching must preserve composer text, got %q", root.editor.Value().Value)
 	}
 }
