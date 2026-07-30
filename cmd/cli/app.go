@@ -28,6 +28,8 @@ type App struct {
 	moveAsk         func(int)
 	confirmAsk      func()
 	respondDefaults func()
+	composerEnabled bool
+	composerFocus   bool
 }
 
 func NewApp(cfg *conf.Global, agent *svc.Agent, session domain.Session, promptService domain.PromptService, envService domain.EnvironmentService, askUserCh chan askuser.Request) *App {
@@ -66,6 +68,15 @@ func (a *App) KeyMap() input.KeyMap {
 		}
 	})}
 }
+
+func (a *App) ComposerDisabled() bool {
+	enabled := !a.controller.Running() && !a.controller.Cancelling()
+	a.composerFocus = enabled && !a.composerEnabled && a.viewport.Value().FollowEnd
+	a.composerEnabled = enabled
+	return !enabled
+}
+
+func (a *App) FocusComposer() bool { return a.composerFocus }
 
 func (a *App) editorKey(event input.KeyEvent) bool {
 	if a.controller.Cancelling() {

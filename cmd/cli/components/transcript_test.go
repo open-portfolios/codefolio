@@ -86,8 +86,121 @@ func TestExpandableToolHeaderIsClickableAcrossItsText(t *testing.T) {
 	if got, want := toggled, []string{"assistant-1:tool-1", "assistant-1:tool-1", "assistant-1:tool-1"}; strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("toggle calls = %#v, want %#v", got, want)
 	}
-	if content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{X: region.rect.X + region.rect.Width, Y: region.rect.Y, Button: input.MouseLeft, Action: input.MousePress}}) {
-		t.Fatal("click outside the tool header must not toggle it")
+	if !content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{X: region.rect.X + region.rect.Width, Y: region.rect.Y, Button: input.MouseLeft, Action: input.MousePress}}) {
+		t.Fatal("timeline click outside the tool header should still be handled")
+	}
+	if got, want := toggled, []string{"assistant-1:tool-1", "assistant-1:tool-1", "assistant-1:tool-1"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("click outside the tool header must not toggle it: got %#v", got)
+	}
+}
+
+func TestTranscriptWheelScrollsViewportWithoutTogglingItems(t *testing.T) {
+	viewport := state.New(builtin.ViewportState{FollowEnd: true})
+	transcript := NewTranscript(renderer.Context{MarkDirtyFn: func() {}}, TranscriptProps{
+		Messages: []*controller.Message{{
+			ID: "assistant-1", Role: "assistant", Tools: []*controller.Tool{{
+				ID: "tool-1", Name: "Bash", Done: true, Output: "ok",
+			}},
+		}, {
+			ID: "assistant-2", Role: "assistant", Content: strings.Repeat("continuation ", 30),
+		}},
+		Viewport: viewport,
+		OnToggleTool: func(string, string) {
+			t.Fatal("wheel must not toggle a tool")
+		},
+	})
+
+	root := transcript.Render(renderer.Context{MarkDirtyFn: func() {}})
+	root.Draw(renderer.NewCellBuffer(20, 2), 0, 0, 20, 2)
+	content := root.Children()[0]
+	if !content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{Action: input.MouseWheel, Scroll: 1}}) {
+		t.Fatal("wheel should be handled by the transcript")
+	}
+	if got := viewport.Value(); got.FollowEnd || got.OffsetY != got.ContentHeight-got.ViewportHeight-1 {
+		t.Fatalf("upward wheel state = %#v, want one row above the end without follow-end", got)
+	}
+
+	if !content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{Action: input.MouseWheel, Scroll: -100}}) {
+		t.Fatal("downward wheel should be handled by the transcript")
+	}
+	if got := viewport.Value(); got.OffsetY != got.ContentHeight-got.ViewportHeight || !got.FollowEnd {
+		t.Fatalf("downward wheel state = %#v, want clamped bottom with follow-end", got)
+	}
+}
+
+func TestTranscriptWheelLeavesShortContentAnchoredAtBottom(t *testing.T) {
+	viewport := state.New(builtin.ViewportState{FollowEnd: true})
+	transcript := NewTranscript(renderer.Context{MarkDirtyFn: func() {}}, TranscriptProps{
+		Messages: []*controller.Message{{ID: "assistant-1", Role: "assistant", Content: "short"}},
+		Viewport: viewport,
+	})
+
+	root := transcript.Render(renderer.Context{MarkDirtyFn: func() {}})
+	root.Draw(renderer.NewCellBuffer(20, 10), 0, 0, 20, 10)
+	content := root.Children()[0]
+	before := viewport.Value()
+	if content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{Action: input.MouseWheel, Scroll: 1}}) {
+		t.Fatal("wheel should not be handled when the transcript does not overflow")
+	}
+	if got := viewport.Value(); got.OffsetY != before.OffsetY || got.FollowEnd != before.FollowEnd {
+		t.Fatalf("short transcript wheel state = %#v, want %#v", got, before)
+	}
+}
+
+func TestTranscriptWheelRestoresFollowEndAtBottom(t *testing.T) {
+	viewport := state.New(builtin.ViewportState{FollowEnd: true})
+	transcript := NewTranscript(renderer.Context{MarkDirtyFn: func() {}}, TranscriptProps{
+		Messages: []*controller.Message{{ID: "assistant-1", Role: "assistant", Content: strings.Repeat("streaming ", 30)}},
+		Viewport: viewport,
+	})
+
+	root := transcript.Render(renderer.Context{MarkDirtyFn: func() {}})
+	root.Draw(renderer.NewCellBuffer(20, 2), 0, 0, 20, 2)
+	content := root.Children()[0]
+	content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{Action: input.MouseWheel, Scroll: 1}})
+	if viewport.Value().FollowEnd {
+		t.Fatal("scrolling above the end must pause follow-end")
+	}
+	content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{Action: input.MouseWheel, Scroll: -100}})
+	if got := viewport.Value(); !got.FollowEnd || !got.AtEnd() {
+		t.Fatalf("bottom wheel state = %#v, want follow-end at the bottom", got)
+	}
+}
+
+func TestTranscriptClickFocusesTimelineAndPreservesToolToggle(t *testing.T) {
+	var focused *renderer.Element
+	var toggled bool
+	transcript := NewTranscript(renderer.Context{MarkDirtyFn: func() {}}, TranscriptProps{
+		Messages: []*controller.Message{{
+			ID: "assistant-1", Role: "assistant", Content: "Finished.", Tools: []*controller.Tool{{
+				ID: "tool-1", Name: "Bash", Done: true, Output: "ok",
+			}},
+		}},
+		Viewport: state.New(builtin.ViewportState{FollowEnd: true}),
+		OnToggleTool: func(string, string) {
+			toggled = true
+		},
+	})
+
+	root := transcript.Render(renderer.Context{MarkDirtyFn: func() {}, FocusFn: func(element *renderer.Element) { focused = element }})
+	root.Draw(renderer.NewCellBuffer(80, 10), 0, 0, 80, 10)
+	content := root.Children()[0]
+	if !content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{X: 3, Y: 0, Action: input.MousePress, Button: input.MouseLeft}}) {
+		t.Fatal("assistant text click should be handled")
+	}
+	if focused != root {
+		t.Fatalf("focused element = %#v, want timeline viewport", focused)
+	}
+	if toggled {
+		t.Fatal("assistant text click must not toggle a tool")
+	}
+
+	region := transcript.regions[0]
+	if !content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{X: region.rect.X, Y: region.rect.Y, Action: input.MousePress, Button: input.MouseLeft}}) {
+		t.Fatal("tool header click should be handled")
+	}
+	if focused != root || !toggled {
+		t.Fatal("tool header click must focus the timeline and toggle the tool")
 	}
 }
 

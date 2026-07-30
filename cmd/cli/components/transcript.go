@@ -58,6 +58,7 @@ func NewTranscript(ctx renderer.Context, props TranscriptProps, children ...rend
 
 func (t *Transcript) Render(ctx renderer.Context) *renderer.Element {
 	content := &renderer.Element{}
+	var viewport *renderer.Element
 	content.SetKey("transcript")
 	content.SetTag("transcript")
 	content.SetProps(t)
@@ -87,9 +88,25 @@ func (t *Transcript) Render(ctx renderer.Context) *renderer.Element {
 	})
 	content.SetHandleMouseFn(func(ev input.KeyEvent) bool {
 		current := renderer.Props[*Transcript](content)
+		if ev.Mouse.Action == input.MouseWheel {
+			if current.props.Viewport == nil || ev.Mouse.Scroll == 0 {
+				return false
+			}
+			viewportState := current.props.Viewport.Value()
+			if viewportState.ContentHeight <= viewportState.ViewportHeight {
+				return false
+			}
+			viewportState.OffsetY -= ev.Mouse.Scroll
+			viewportState.Clamp()
+			viewportState.FollowEnd = viewportState.AtEnd()
+			current.props.Viewport.Set(viewportState)
+			ctx.Focus(viewport)
+			return true
+		}
 		if ev.Mouse.Action != input.MousePress || ev.Mouse.Button != input.MouseLeft {
 			return false
 		}
+		ctx.Focus(viewport)
 		for _, region := range current.regions {
 			if contains(region.rect, ev.Mouse.X, ev.Mouse.Y) {
 				if region.kind == "thinking" {
@@ -100,9 +117,9 @@ func (t *Transcript) Render(ctx renderer.Context) *renderer.Element {
 				return true
 			}
 		}
-		return false
+		return true
 	})
-	viewport := builtin.CreateViewport(ctx, builtin.ViewportProps{Key: "chat", State: t.props.Viewport, ScrollY: true, StickToBottom: true}, content)
+	viewport = builtin.CreateViewport(ctx, builtin.ViewportProps{Key: "chat", State: t.props.Viewport, ScrollY: true, StickToBottom: true}, content)
 	viewport.SetFlex(1)
 	return viewport
 }

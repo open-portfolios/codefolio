@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.61.0
-	github.com/cylixlee/tux v0.1.2
+	github.com/cylixlee/tux v0.1.3
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/google/wire v0.7.0
 	github.com/joho/godotenv v1.5.1

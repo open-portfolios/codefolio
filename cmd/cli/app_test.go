@@ -22,3 +22,26 @@ func TestEditorCtrlCClearsOnlyNonEmptyInput(t *testing.T) {
 		t.Fatal("empty editor must leave Ctrl+C to the TUX app fallback")
 	}
 }
+
+func TestComposerFocusRestoresOnlyWhenTimelineFollowsEnd(t *testing.T) {
+	root := &App{
+		controller:      &controller.Controller{},
+		viewport:        state.New(builtin.ViewportState{FollowEnd: true}),
+		composerEnabled: false,
+	}
+	if root.ComposerDisabled() {
+		t.Fatal("idle composer should be enabled")
+	}
+	if !root.FocusComposer() {
+		t.Fatal("composer should focus when it becomes enabled at the timeline end")
+	}
+
+	root.composerEnabled = false
+	root.viewport.Set(builtin.ViewportState{FollowEnd: false})
+	if root.ComposerDisabled() {
+		t.Fatal("idle composer should remain enabled")
+	}
+	if root.FocusComposer() {
+		t.Fatal("composer must not reclaim focus when the timeline is scrolled away from the end")
+	}
+}

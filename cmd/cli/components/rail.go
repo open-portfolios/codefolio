@@ -5,11 +5,14 @@ import (
 	"github.com/cylixlee/tux/style"
 )
 
-type RailProps struct{}
-type Rail struct{ children []renderer.Component }
+type RailProps struct{ Disabled bool }
+type Rail struct {
+	props    RailProps
+	children []renderer.Component
+}
 
 func NewRail(ctx renderer.Context, props RailProps, children ...renderer.Component) *Rail {
-	return &Rail{children: children}
+	return &Rail{props: props, children: children}
 }
 
 func (r *Rail) Render(ctx renderer.Context) *renderer.Element {
@@ -23,8 +26,12 @@ func (r *Rail) Render(ctx renderer.Context) *renderer.Element {
 	}
 	e.SetPaintFn(func(draw renderer.DrawContext, box renderer.Rect) {
 		draw.Fill(box, renderer.Cell{Rune: ' ', Style: style.Style{Bg: Theme.BackgroundElement}})
+		railFg, railAttrs := Theme.Primary, style.Bold
+		if r.props.Disabled {
+			railFg, railAttrs = Theme.TextMuted, style.Dim
+		}
 		for row := range box.Height {
-			draw.WriteStringWide(box.X, box.Y+row, "┃", style.Style{Fg: Theme.Primary, Bg: Theme.BackgroundElement, Attrs: style.Bold})
+			draw.WriteStringWide(box.X, box.Y+row, "┃", style.Style{Fg: railFg, Bg: Theme.BackgroundElement, Attrs: railAttrs})
 		}
 		for _, child := range e.Children() {
 			child.Paint(draw.Viewport(box).Viewport(renderer.Rect{X: 1, Width: max(box.Width-1, 0), Height: box.Height}), renderer.Rect{Width: max(box.Width-1, 0), Height: box.Height})

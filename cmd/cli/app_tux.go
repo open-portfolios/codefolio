@@ -20,10 +20,12 @@ func (self *App) Render(ctx renderer.Context) *renderer.Element {
 			WorkDir: self.workDir,
 		}),
 		p1.NewPrompt(ctx, p1.PromptProps{
-			State:   self.editor,
-			OnKey:   self.handleEditorKey,
-			Model:   self.controller.ModelName(),
-			WorkDir: self.workDir,
+			State:    self.editor,
+			OnKey:    self.handleEditorKey,
+			Model:    self.controller.ModelName(),
+			WorkDir:  self.workDir,
+			Disabled: self.ComposerDisabled(),
+			Focus:    self.FocusComposer(),
 		}),
 		p1.NewAskDialog(ctx, p1.AskDialogProps{
 			Open:       self.askOpen,
