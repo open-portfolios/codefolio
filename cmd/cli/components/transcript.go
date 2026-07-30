@@ -80,7 +80,7 @@ func (t *Transcript) Render(ctx renderer.Context) *renderer.Element {
 			}
 			draw.WriteStringWide(box.X, box.Y+row, line.text, style.Style{Fg: line.fg, Bg: line.bg, Attrs: line.attrs})
 			if line.kind != "" {
-				current.regions = append(current.regions, clickRegion{rect: renderer.Rect{X: draw.Origin.X + box.X, Y: draw.Origin.Y + box.Y + row, Width: box.Width, Height: 1}, kind: line.kind, messageID: line.messageID, toolID: line.toolID})
+				current.regions = append(current.regions, clickRegion{rect: renderer.Rect{X: draw.Origin.X + box.X, Y: draw.Origin.Y + box.Y + row, Width: runewidth.StringWidth(line.text), Height: 1}, kind: line.kind, messageID: line.messageID, toolID: line.toolID})
 			}
 		}
 		content.SetRect(renderer.Rect{X: draw.Origin.X + box.X, Y: draw.Origin.Y + box.Y, Width: box.Width, Height: len(lines)})

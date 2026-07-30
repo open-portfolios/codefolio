@@ -211,6 +211,14 @@ func (c *Controller) ToggleTool(messageID, toolID string) {
 	}
 }
 
+// StartAssistantSegment separates the next model iteration from the assistant
+// activity that invoked tools. This is presentation-only; the domain session
+// continues to own the provider's assistant-message boundaries.
+func (c *Controller) StartAssistantSegment() {
+	c.messages = append(c.messages, &Message{ID: fmt.Sprintf("assistant-%d", len(c.messages)+1), Role: "assistant", Streaming: true})
+	c.invalidate()
+}
+
 func (c *Controller) currentAssistant() *Message {
 	for i := len(c.messages) - 1; i >= 0; i-- {
 		if c.messages[i].Role == "assistant" {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/cylixlee/tux/builtin"
+	"github.com/cylixlee/tux/input"
 	"github.com/cylixlee/tux/renderer"
 	"github.com/cylixlee/tux/state"
 	"github.com/open-portfolios/codefolio/cmd/cli/controller"
@@ -29,23 +30,64 @@ func TestToolLabelHandlesKnownAndUnknownTools(t *testing.T) {
 	}
 }
 
-func TestProjectTimelineSeparatesAssistantActivities(t *testing.T) {
+func TestProjectTimelinePlacesToolContinuationAfterToolActivity(t *testing.T) {
 	messages := []*controller.Message{{
 		ID:       "assistant-1",
 		Role:     "assistant",
-		Content:  "Done.",
+		Content:  "I will inspect it.",
 		Thinking: "Inspecting files",
 		Tools: []*controller.Tool{{
 			ID: "tool-1", Name: "Bash", Done: true, Expanded: true, Output: "ok",
 		}},
+	}, {
+		ID:      "assistant-2",
+		Role:    "assistant",
+		Content: "The command completed.",
 	}}
 
 	items := projectTimeline(messages)
-	if len(items) != 4 {
-		t.Fatalf("item count = %d, want 4", len(items))
+	if len(items) != 5 {
+		t.Fatalf("item count = %d, want 5", len(items))
 	}
-	if items[0].Kind != TimelineThinking || items[1].Kind != TimelineAssistantMarkdown || items[2].Kind != TimelineToolActivity || items[3].Kind != TimelineToolOutput {
+	if items[0].Kind != TimelineThinking || items[1].Kind != TimelineAssistantMarkdown || items[2].Kind != TimelineToolActivity || items[3].Kind != TimelineToolOutput || items[4].Kind != TimelineAssistantMarkdown {
 		t.Fatalf("unexpected timeline item kinds: %#v", items)
+	}
+	if items[4].Content != "The command completed." {
+		t.Fatalf("tool continuation = %q, want post-tool assistant content", items[4].Content)
+	}
+}
+
+func TestExpandableToolHeaderIsClickableAcrossItsText(t *testing.T) {
+	var toggled []string
+	transcript := NewTranscript(renderer.Context{MarkDirtyFn: func() {}}, TranscriptProps{
+		Messages: []*controller.Message{{
+			ID: "assistant-1", Role: "assistant", Tools: []*controller.Tool{{
+				ID: "tool-1", Name: "Bash", Input: `{"command":"go test ./..."}`, Done: true, Output: "ok",
+			}},
+		}},
+		Viewport: state.New(builtin.ViewportState{FollowEnd: true}),
+		OnToggleTool: func(messageID, toolID string) {
+			toggled = append(toggled, messageID+":"+toolID)
+		},
+	})
+
+	root := transcript.Render(renderer.Context{MarkDirtyFn: func() {}})
+	root.Draw(renderer.NewCellBuffer(80, 10), 0, 0, 80, 10)
+	content := root.Children()[0]
+	if len(transcript.regions) != 1 {
+		t.Fatalf("click regions = %#v, want one tool header", transcript.regions)
+	}
+	region := transcript.regions[0]
+	for _, x := range []int{region.rect.X, region.rect.X + region.rect.Width/2, region.rect.X + region.rect.Width - 1} {
+		if !content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{X: x, Y: region.rect.Y, Button: input.MouseLeft, Action: input.MousePress}}) {
+			t.Fatalf("click at x=%d was not handled", x)
+		}
+	}
+	if got, want := toggled, []string{"assistant-1:tool-1", "assistant-1:tool-1", "assistant-1:tool-1"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("toggle calls = %#v, want %#v", got, want)
+	}
+	if content.HandleMouse(input.KeyEvent{Type: input.EventMouse, Mouse: input.MouseEvent{X: region.rect.X + region.rect.Width, Y: region.rect.Y, Button: input.MouseLeft, Action: input.MousePress}}) {
+		t.Fatal("click outside the tool header must not toggle it")
 	}
 }
 

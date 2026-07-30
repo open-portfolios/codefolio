@@ -84,7 +84,13 @@ func (v *visitor) VisitToolResult(e domain.ToolResultEvent) error {
 		}
 	})
 }
-func (v *visitor) VisitTurnComplete(domain.TurnCompleteEvent) error { return nil }
+func (v *visitor) VisitTurnComplete(domain.TurnCompleteEvent) error {
+	return v.post(func() {
+		if v.active() {
+			v.controller.StartAssistantSegment()
+		}
+	})
+}
 func (v *visitor) VisitLoopComplete(domain.LoopCompleteEvent) error {
 	return v.post(func() {
 		if v.runID == v.controller.runID {

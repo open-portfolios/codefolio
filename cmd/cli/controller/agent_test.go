@@ -26,3 +26,20 @@ func TestApplyToolCallUpdatesExistingToolInput(t *testing.T) {
 		t.Fatalf("tool input = %q", got)
 	}
 }
+
+func TestStartAssistantSegmentSeparatesToolContinuation(t *testing.T) {
+	c := &Controller{
+		messages: []*Message{{ID: "assistant-1", Role: "assistant", Tools: []*Tool{{ID: "tool-1", Name: "Bash", Done: true}}}},
+		invalidate: func() {
+		},
+	}
+
+	c.StartAssistantSegment()
+
+	if len(c.messages) != 2 {
+		t.Fatalf("message count = %d, want 2", len(c.messages))
+	}
+	if got := c.messages[1]; got.ID != "assistant-2" || got.Role != "assistant" || !got.Streaming {
+		t.Fatalf("continuation segment = %#v, want streaming assistant-2", got)
+	}
+}
