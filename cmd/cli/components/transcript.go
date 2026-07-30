@@ -52,6 +52,15 @@ type visualLine struct {
 	toolID    string
 }
 
+type timelineGroup uint8
+
+const (
+	groupUser timelineGroup = iota
+	groupAssistant
+	groupActivity
+	groupMeta
+)
+
 func NewTranscript(ctx renderer.Context, props TranscriptProps, children ...renderer.Component) *Transcript {
 	return &Transcript{props: props, width: transcriptWidth(ctx)}
 }
@@ -180,7 +189,7 @@ func (t *Transcript) lines(width int) []visualLine {
 		case TimelineTurnMeta:
 			lines = append(lines, visualLine{text: "   ▣  " + strings.ToUpper(item.Content[:1]) + item.Content[1:], fg: Theme.Error, messageID: item.MessageID})
 		}
-		if index < len(items)-1 && item.MessageID != items[index+1].MessageID {
+		if index < len(items)-1 && groupFor(item) != groupFor(items[index+1]) {
 			lines = append(lines, visualLine{})
 		}
 	}
@@ -195,6 +204,19 @@ func (t *Transcript) lines(width int) []visualLine {
 		return lines
 	}
 	return trimTrailingBlankLines(lines)
+}
+
+func groupFor(item TimelineItem) timelineGroup {
+	switch item.Kind {
+	case TimelineUserMessage:
+		return groupUser
+	case TimelineAssistantMarkdown:
+		return groupAssistant
+	case TimelineThinking, TimelineToolActivity, TimelineToolOutput:
+		return groupActivity
+	default:
+		return groupMeta
+	}
 }
 
 func userMessageLines(content string, width int, messageID string) []visualLine {
@@ -284,11 +306,7 @@ func inlineCode(text string) string {
 }
 func toolLabel(tool *controller.Tool) string {
 	if isMCPTool(tool.Name) {
-		parts := strings.Split(tool.Name, "__")
-		if len(parts) >= 3 {
-			return "MCP · " + parts[1] + " / " + strings.Join(parts[2:], "__")
-		}
-		return "MCP · " + tool.Name
+		return displayToolName(tool.Name)
 	}
 	verb := map[string]string{"ReadFile": "Read", "WriteFile": "Wrote", "EditFile": "Edited", "Glob": "Glob", "Grep": "Grep", "Bash": "Bash", "AskUserQuestion": "Question"}[tool.Name]
 	if verb == "" {

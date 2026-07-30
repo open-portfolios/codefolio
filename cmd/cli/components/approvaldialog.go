@@ -26,7 +26,10 @@ func NewApprovalDialog(ctx renderer.Context, props ApprovalDialogProps, children
 func (d *ApprovalDialog) Render(ctx renderer.Context) *renderer.Element {
 	toolName, summary, detail := "Tool", "Waiting for approval", "This action needs your approval."
 	if request := d.props.Approval.Request; request != nil {
-		toolName, summary, detail = request.ToolName, request.Summary, request.Detail
+		toolName, summary, detail = displayToolName(request.ToolName), request.Summary, request.Detail
+		if summary == request.ToolName {
+			summary = toolName
+		}
 	}
 	once := builtin.CreateButton(ctx, builtin.ButtonProps{Key: "approval-once", Text: "Allow once", OnClick: d.props.OnAllowOnce})
 	session := builtin.CreateButton(ctx, builtin.ButtonProps{Key: "approval-session", Text: "Allow this session", OnClick: d.props.OnAllowSession})

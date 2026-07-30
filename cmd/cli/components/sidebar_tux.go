@@ -73,25 +73,6 @@ func (self *Sidebar) Render(ctx renderer.Context) *renderer.Element {
 				Text: self.mcp.Label,
 				Fg:   self.MCPColor(),
 				Bg:   Theme.BackgroundPanel,
-			}),
-			builtin.CreateText(ctx, builtin.TextProps{
-				Bg: Theme.BackgroundPanel,
-			}),
-			builtin.CreateText(ctx, builtin.TextProps{
-				Text:  "Todo",
-				Style: style.Bold,
-				Fg:    Theme.Text,
-				Bg:    Theme.BackgroundPanel,
-			}),
-			builtin.CreateText(ctx, builtin.TextProps{
-				Text: "○ Inspect the workspace",
-				Fg:   Theme.TextMuted,
-				Bg:   Theme.BackgroundPanel,
-			}),
-			builtin.CreateText(ctx, builtin.TextProps{
-				Text: "○ Plan the next change",
-				Fg:   Theme.TextMuted,
-				Bg:   Theme.BackgroundPanel,
 			})),
 		builtin.CreateRow(ctx, builtin.RowProps{
 			Key:          "sidebar-footer",

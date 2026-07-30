@@ -40,6 +40,9 @@ func TestToolLabelHandlesKnownAndUnknownTools(t *testing.T) {
 	if got := toolLabel(&controller.Tool{Name: "CustomTool"}); got != "CustomTool" {
 		t.Fatalf("unknown label = %q", got)
 	}
+	if got := toolLabel(&controller.Tool{Name: "mcp__chrome_devtools__new_page"}); got != "MCP chrome_devtools / new_page" {
+		t.Fatalf("MCP label = %q", got)
+	}
 }
 
 func TestProjectTimelinePlacesToolContinuationAfterToolActivity(t *testing.T) {
@@ -250,7 +253,7 @@ func TestTranscriptAddsGapsBetweenMessagesButNotAfterTheLast(t *testing.T) {
 	}
 }
 
-func TestTranscriptDoesNotGapAssistantPartsWithinTheSameMessage(t *testing.T) {
+func TestTranscriptGapsAssistantActivityAndMessageWithinTheSameSegment(t *testing.T) {
 	transcript := &Transcript{props: TranscriptProps{Messages: []*controller.Message{{
 		ID:       "assistant-1",
 		Role:     "assistant",
@@ -258,11 +261,58 @@ func TestTranscriptDoesNotGapAssistantPartsWithinTheSameMessage(t *testing.T) {
 		Content:  "Complete.",
 	}}}}
 	lines := transcript.lines(80)
-	if len(lines) != 2 {
-		t.Fatalf("line count = %d, want two adjacent assistant parts", len(lines))
+	if len(lines) != 3 {
+		t.Fatalf("line count = %d, want thinking, gap, and message", len(lines))
 	}
-	if lines[0].text == "" || lines[1].text == "" {
-		t.Fatalf("assistant parts must not be separated by an implicit gap: %#v", lines)
+	if lines[0].text == "" || strings.TrimSpace(lines[1].text) != "" || lines[2].text == "" {
+		t.Fatalf("assistant activity and message must be separated by one gap: %#v", lines)
+	}
+}
+
+func TestTranscriptDoesNotGapToolActivitiesAcrossAssistantSegments(t *testing.T) {
+	transcript := &Transcript{props: TranscriptProps{Messages: []*controller.Message{
+		{ID: "assistant-1", Role: "assistant", Tools: []*controller.Tool{{ID: "tool-mcp-1", Name: "mcp__chrome_devtools__list_pages", Done: true}}},
+		{ID: "assistant-2", Role: "assistant", Tools: []*controller.Tool{{ID: "tool-mcp-2", Name: "mcp__chrome_devtools__new_page", Done: true}}},
+	}}}
+	lines := transcript.lines(80)
+	search := lineIndex(lines, "MCP chrome_devtools / list_pages")
+	mcp := lineIndex(lines, "MCP chrome_devtools / new_page")
+	if search < 0 || mcp < 0 {
+		t.Fatalf("tool activities missing: %#v", lines)
+	}
+	if mcp != search+1 {
+		t.Fatalf("tool activities must be adjacent: %#v", lines)
+	}
+}
+
+func TestProjectTimelineHidesToolSearch(t *testing.T) {
+	messages := []*controller.Message{{
+		ID: "assistant-1", Role: "assistant", Tools: []*controller.Tool{
+			{ID: "tool-search", Name: "ToolSearch", Done: true, Output: "loaded"},
+			{ID: "tool-mcp", Name: "mcp__chrome_devtools__new_page", Done: true},
+		},
+	}}
+	items := projectTimeline(messages)
+	if len(items) != 2 || items[0].ToolID != "tool-search" || items[1].ToolID != "tool-mcp" {
+		t.Fatalf("ToolSearch and MCP tool must create timeline activities: %#v", items)
+	}
+}
+
+func TestToolSearchOutputStaysHidden(t *testing.T) {
+	if showOutput("ToolSearch") {
+		t.Fatal("ToolSearch schemas must not be rendered as tool output")
+	}
+}
+
+func TestTranscriptGapsToolActivityAndAssistantMessage(t *testing.T) {
+	transcript := &Transcript{props: TranscriptProps{Messages: []*controller.Message{
+		{ID: "assistant-1", Role: "assistant", Tools: []*controller.Tool{{ID: "tool-bash", Name: "Bash", Done: true}}},
+		{ID: "assistant-2", Role: "assistant", Content: "I found the tools."},
+	}}}
+	lines := transcript.lines(80)
+	message := lineIndex(lines, "I found the tools.")
+	if message < 1 || strings.TrimSpace(lines[message-1].text) != "" {
+		t.Fatalf("tool activity and assistant message need one blank line: %#v", lines)
 	}
 }
 
@@ -373,4 +423,13 @@ func stringRow(buffer *renderer.CellBuffer, y int) string {
 		}
 	}
 	return string(line)
+}
+
+func lineIndex(lines []visualLine, content string) int {
+	for index, line := range lines {
+		if strings.Contains(line.text, content) {
+			return index
+		}
+	}
+	return -1
 }

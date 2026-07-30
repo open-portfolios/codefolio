@@ -11,10 +11,6 @@
             <text text="" bg="{Theme.BackgroundPanel}" />
             <text text="MCP" style="bold" fg="{Theme.Text}" bg="{Theme.BackgroundPanel}" />
             <text text="${mcp.Label}" fg="{self.MCPColor()}" bg="{Theme.BackgroundPanel}" />
-            <text text="" bg="{Theme.BackgroundPanel}" />
-            <text text="Todo" style="bold" fg="{Theme.Text}" bg="{Theme.BackgroundPanel}" />
-            <text text="○ Inspect the workspace" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
-            <text text="○ Plan the next change" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
         </column>
         <row key="sidebar-footer" paddingLeft="2" paddingRight="2" bg="{Theme.BackgroundPanel}">
             <text text="● Codefolio" style="dim" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />

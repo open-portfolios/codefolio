@@ -76,7 +76,7 @@ func TestAppRendersOpenCodeSessionSurfaces(t *testing.T) {
 			t.Fatalf("screen cell (%d, %d) background = %#v, want %#v", point.x, point.y, cell.Style.Bg, point.bg)
 		}
 	}
-	for _, expected := range []string{"Build · test-model DeepSeek · High", "Context", "MCP", "No servers configured", "Todo"} {
+	for _, expected := range []string{"Build · test-model DeepSeek · High", "Context", "MCP", "No servers configured"} {
 		found := false
 		for y := range 30 {
 			if strings.Contains(mockTerminal.Line(y), expected) {
@@ -90,6 +90,13 @@ func TestAppRendersOpenCodeSessionSurfaces(t *testing.T) {
 				lines[y] = mockTerminal.Line(y)
 			}
 			t.Fatalf("mock terminal frame does not contain %q:\n%s", expected, strings.Join(lines, "\n"))
+		}
+	}
+	for _, unexpected := range []string{"Todo", "Inspect the workspace", "Plan the next change"} {
+		for y := range 30 {
+			if strings.Contains(mockTerminal.Line(y), unexpected) {
+				t.Fatalf("mock terminal frame must not contain removed sidebar text %q", unexpected)
+			}
 		}
 	}
 	for y := range 30 {
