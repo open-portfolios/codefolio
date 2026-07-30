@@ -36,6 +36,7 @@ type Agent struct {
 	toolRegistry   domain.ToolRegistry
 	promptService  domain.PromptService
 	contextManager *ContextManager
+	memoryService  *MemoryService
 }
 
 func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistry domain.ToolRegistry, promptService domain.PromptService, contextManager *ContextManager) *Agent {
@@ -47,6 +48,7 @@ func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistr
 		toolRegistry:   toolRegistry,
 		promptService:  promptService,
 		contextManager: contextManager,
+		memoryService:  NewMemoryService(driver),
 	}
 }
 
@@ -69,6 +71,14 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struc
 		}
 
 		requestMessages := session.Messages()
+		query := ""
+		for i := len(requestMessages) - 1; i >= 0; i-- {
+			if requestMessages[i].Role == llm.RoleUser {
+				query = requestMessages[i].Content
+				break
+			}
+		}
+		requestMessages = append(requestMessages, a.memoryService.Context(ctx, a.WorkDir, query, iter == 1, cfg)...)
 		if a.Mode == ModePlan {
 			planExists := fileExists(DefaultPlanFilePath)
 			reminder := a.promptService.BuildPlanModeReminder(DefaultPlanFilePath, planExists, iter)
@@ -103,6 +113,8 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struc
 	loop:
 		for {
 			select {
+			case <-ctx.Done():
+				return ctx.Err()
 			case delta, ok := <-deltaCh:
 				if !ok {
 					break loop
@@ -152,21 +164,13 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struc
 		if !hasToolUse {
 			session.FinishAssistantMessage()
 			cb.VisitLoopComplete(domain.LoopCompleteEvent{TotalTurns: iter})
+			go a.memoryService.Extract(a.WorkDir, session.Messages(), cfg)
 			return nil
 		}
 
 		for _, tc := range toolCalls {
-			last := session.LastMessage()
-			if last == nil {
-				break
-			}
-			for i := range last.ToolCalls {
-				if last.ToolCalls[i].ID == tc.id {
-					last.ToolCalls[i].Input = tc.input
-					cb.VisitToolCall(domain.ToolCallEvent{ID: tc.id, Name: tc.name, Input: tc.input})
-					break
-				}
-			}
+			session.UpdateToolCallInput(tc.id, tc.input)
+			cb.VisitToolCall(domain.ToolCallEvent{ID: tc.id, Name: tc.name, Input: tc.input})
 		}
 
 		exec := a.execFactory(a.toolRegistry, a.WorkDir)

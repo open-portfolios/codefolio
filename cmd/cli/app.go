@@ -50,6 +50,7 @@ func NewApp(cfg *conf.Struct, agent *svc.Agent, session domain.Session, promptSe
 	env := envService.Detect(workDir)
 	env.Model = cfg.Model
 	session.AddSystemMessage(promptService.BuildSystemPrompt(env))
+	session.ConfigurePersistence(workDir)
 	a := &App{
 		controller:    controller.New(cfg, agent, session, askUserCh, approvalCh),
 		workDir:       shortPath(workDir),

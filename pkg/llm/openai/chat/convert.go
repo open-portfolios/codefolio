@@ -54,7 +54,10 @@ func (c *messageConverter) VisitSystem(m llm.SystemMessage) error {
 }
 
 func (c *messageConverter) VisitDeveloper(m llm.DeveloperMessage) error {
-	c.msgs = append(c.msgs, openai.DeveloperMessage(m.Content))
+	// Some OpenAI-compatible APIs, including DeepSeek Chat Completions, do not
+	// accept the newer developer role. Preserve instruction precedence through
+	// the broadly supported system role at this provider boundary.
+	c.msgs = append(c.msgs, openai.SystemMessage(m.Content))
 	return nil
 }
 
