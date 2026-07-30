@@ -19,12 +19,13 @@ import (
 func TestAppRendersOpenCodeSessionSurfaces(t *testing.T) {
 	mockTerminal := terminal.NewMock(130, 30)
 	root := &App{
-		controller: controller.New(&conf.Global{Model: "test-model"}, nil, nil, nil),
-		workDir:    "~/workspace",
-		editor:     state.New(builtin.TextareaState{PreferredColumn: -1}),
-		viewport:   state.New(builtin.ViewportState{FollowEnd: true}),
-		spinner:    state.New(0),
-		askOpen:    state.New(false),
+		controller:   controller.New(&conf.Global{Model: "test-model"}, nil, nil, nil, nil),
+		workDir:      "~/workspace",
+		editor:       state.New(builtin.TextareaState{PreferredColumn: -1}),
+		viewport:     state.New(builtin.ViewportState{FollowEnd: true}),
+		spinner:      state.New(0),
+		askOpen:      state.New(false),
+		approvalOpen: state.New(false),
 	}
 	root.handleEditorKey = root.editorKey
 

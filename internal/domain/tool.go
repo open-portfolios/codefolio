@@ -18,7 +18,18 @@ type ToolRegistry interface {
 type ToolResult struct {
 	Output  string
 	IsError bool
+	Outcome ToolOutcome
 }
+
+type ToolOutcome string
+
+const (
+	ToolOutcomeSucceeded         ToolOutcome = "succeeded"
+	ToolOutcomeFailed            ToolOutcome = "failed"
+	ToolOutcomePermissionDenied  ToolOutcome = "permission_denied"
+	ToolOutcomePermissionAborted ToolOutcome = "permission_aborted"
+	ToolOutcomeCancelled         ToolOutcome = "cancelled"
+)
 
 type Tool interface {
 	Name() string

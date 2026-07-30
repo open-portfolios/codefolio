@@ -12,6 +12,7 @@ import (
 
 	"github.com/open-portfolios/codefolio/cmd/cli/components"
 	"github.com/open-portfolios/codefolio/internal/conf"
+	"github.com/open-portfolios/codefolio/internal/infra/approval"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
 )
 
@@ -29,7 +30,8 @@ func main() {
 	}
 
 	askUserCh := make(chan askuser.Request, 1)
-	root, cleanup, err := InitApp(cfg, askUserCh)
+	approvalCh := make(chan *approval.Request, 16)
+	root, cleanup, err := InitApp(cfg, askUserCh, approvalCh)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "init error: %v\n", err)
 		os.Exit(1)
@@ -46,6 +48,7 @@ func main() {
 	runtime := app.New(app.AppConfig{Root: root, Terminal: term, Background: components.Theme.Background})
 	root.AttachApp(runtime)
 	runErr := runtime.Run(context.Background())
+	root.Shutdown()
 	term.Restore()
 	fmt.Fprintf(os.Stdout, "\n%s\n\n", components.CodefolioBannerText())
 	if runErr != nil {

@@ -75,7 +75,7 @@ func (v *visitor) VisitToolResult(e domain.ToolResultEvent) error {
 			if m := v.controller.currentAssistant(); m != nil {
 				for _, tool := range m.Tools {
 					if tool.ID == e.ID {
-						tool.Done, tool.Output, tool.IsError, tool.Elapsed = true, e.Output, e.IsError, e.Elapsed
+						tool.Done, tool.Output, tool.IsError, tool.Outcome, tool.Elapsed = true, e.Output, e.IsError, e.Outcome, e.Elapsed
 						v.controller.invalidate()
 						break
 					}

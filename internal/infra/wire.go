@@ -9,8 +9,10 @@ import (
 	"github.com/open-portfolios/codefolio/internal/infra/tools"
 )
 
-func NewExecutorFactory() domain.ExecutorFactory {
-	return NewExecutor
+func NewExecutorFactory(authorizer domain.Authorizer) domain.ExecutorFactory {
+	return func(registry domain.ToolRegistry, workDir string) domain.Executor {
+		return NewExecutor(registry, authorizer, workDir)
+	}
 }
 
 var Set = wire.NewSet(

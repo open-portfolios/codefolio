@@ -29,6 +29,7 @@ type pendingCall struct {
 type Agent struct {
 	MaxIterations int
 	Mode          AgentMode
+	WorkDir       string
 	driver        llm.Driver
 	execFactory   domain.ExecutorFactory
 	toolRegistry  domain.ToolRegistry
@@ -141,7 +142,7 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Globa
 			}
 		}
 
-		exec := a.execFactory(a.toolRegistry)
+		exec := a.execFactory(a.toolRegistry, a.WorkDir)
 		for _, tc := range toolCalls {
 			exec.Submit(ctx, tc.id, tc.name, tc.input)
 		}

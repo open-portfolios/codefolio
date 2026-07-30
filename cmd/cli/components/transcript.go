@@ -166,8 +166,10 @@ func (t *Transcript) lines(width int) []visualLine {
 			lines = append(lines, wrap("   "+toolSummary(item.Tool, t.props.Frame), width, fg, attrs, kind, item.MessageID, item.ToolID)...)
 		case TimelineToolOutput:
 			fg := Theme.TextMuted
-			if item.Tool.IsError {
+			if item.Tool.IsError && item.Tool.Outcome != "permission_denied" && item.Tool.Outcome != "permission_aborted" {
 				fg = Theme.Error
+			} else if item.Tool.Outcome == "permission_denied" || item.Tool.Outcome == "permission_aborted" {
+				fg = Theme.Warning
 			}
 			for _, line := range previewOutput(item.Content, width, 10, item.MessageID, item.ToolID, fg) {
 				line.bg = Theme.BackgroundPanel

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -11,10 +12,12 @@ import (
 )
 
 type executor struct {
-	registry domain.ToolRegistry
-	mu       sync.Mutex
-	pending  []pendingTool
-	wg       sync.WaitGroup
+	registry   domain.ToolRegistry
+	authorizer domain.Authorizer
+	workDir    string
+	mu         sync.Mutex
+	pending    []pendingTool
+	wg         sync.WaitGroup
 }
 
 type pendingTool struct {
@@ -30,11 +33,12 @@ type toolExecResult struct {
 	toolName string
 	output   string
 	isError  bool
+	outcome  domain.ToolOutcome
 	elapsed  time.Duration
 }
 
-func NewExecutor(registry domain.ToolRegistry) domain.Executor {
-	return &executor{registry: registry}
+func NewExecutor(registry domain.ToolRegistry, authorizer domain.Authorizer, workDir string) domain.Executor {
+	return &executor{registry: registry, authorizer: authorizer, workDir: workDir}
 }
 
 func (e *executor) Submit(ctx context.Context, toolID, toolName, input string) {
@@ -70,6 +74,7 @@ func (e *executor) CollectResults() []domain.ToolResultEvent {
 				Name:    p.result.toolName,
 				Output:  p.result.output,
 				IsError: p.result.isError,
+				Outcome: p.result.outcome,
 				Elapsed: p.result.elapsed,
 			}
 		}
@@ -103,13 +108,51 @@ func (e *executor) execute(ctx context.Context, toolID, toolName, input string) 
 			}
 		}
 	}
+	normalizePathArgs(args, e.workDir)
+	if err := ctx.Err(); err != nil {
+		return toolExecResult{toolID: toolID, toolName: toolName, output: "Error: tool execution cancelled", isError: true, outcome: domain.ToolOutcomeCancelled, elapsed: time.Since(start)}
+	}
+	if e.authorizer != nil {
+		decision := e.authorizer.Authorize(ctx, domain.ToolInvocation{ID: toolID, Name: toolName, Category: t.Category(), Input: input, Args: args, WorkDir: e.workDir})
+		if decision.Effect != domain.PermissionAllow {
+			outcome := domain.ToolOutcomePermissionDenied
+			if decision.Reason == "approval cancelled" {
+				outcome = domain.ToolOutcomePermissionAborted
+			}
+			return toolExecResult{toolID: toolID, toolName: toolName, output: "Permission denied: " + decision.Reason, isError: true, outcome: outcome, elapsed: time.Since(start)}
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return toolExecResult{toolID: toolID, toolName: toolName, output: "Error: tool execution cancelled", isError: true, outcome: domain.ToolOutcomeCancelled, elapsed: time.Since(start)}
+	}
 
-	result := t.Execute(ctx, args)
+	result := t.Execute(domain.WithExecutionWorkDir(ctx, e.workDir), args)
+	outcome := result.Outcome
+	if outcome == "" {
+		outcome = domain.ToolOutcomeSucceeded
+		if result.IsError {
+			outcome = domain.ToolOutcomeFailed
+		}
+	}
 	return toolExecResult{
 		toolID:   toolID,
 		toolName: toolName,
 		output:   result.Output,
 		isError:  result.IsError,
+		outcome:  outcome,
 		elapsed:  time.Since(start),
+	}
+}
+
+func normalizePathArgs(args map[string]any, workDir string) {
+	if workDir == "" {
+		return
+	}
+	for _, key := range []string{"file_path", "path"} {
+		value, ok := args[key].(string)
+		if !ok || value == "" || filepath.IsAbs(value) {
+			continue
+		}
+		args[key] = filepath.Join(workDir, value)
 	}
 }

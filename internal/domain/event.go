@@ -41,6 +41,7 @@ type ToolResultEvent struct {
 	Name    string
 	Output  string
 	IsError bool
+	Outcome ToolOutcome
 	Elapsed time.Duration
 }
 

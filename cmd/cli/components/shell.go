@@ -13,7 +13,7 @@ func NewShell(ctx renderer.Context, props ShellProps, children ...renderer.Compo
 }
 
 func (s *Shell) Render(ctx renderer.Context) *renderer.Element {
-	if len(s.children) != 4 {
+	if len(s.children) != 5 {
 		return builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "shell-content", Gap: 1}, s.children...)
 	}
 	width, _ := ctx.Size()
@@ -23,6 +23,7 @@ func (s *Shell) Render(ctx renderer.Context) *renderer.Element {
 		builtin.CreateText(ctx, builtin.TextProps{Key: "timeline-bottom-space", Text: "", Bg: Theme.Background}),
 		horizontalInset(ctx, "prompt-inset", s.children[2], false),
 		s.children[3],
+		s.children[4],
 	)
 	if width > 120 {
 		return builtin.CreateRow(ctx, builtin.RowProps{Key: "session", Flex: 1}, main, s.children[1])

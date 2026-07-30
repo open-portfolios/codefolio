@@ -3,6 +3,7 @@
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Sidebar" />
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Prompt" />
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="AskDialog" />
+	<import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="ApprovalDialog" />
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Shell" />
 
     <Shell>
@@ -10,5 +11,6 @@
         <Sidebar workDir="${workDir}" />
         <Prompt state="${editor}" onKey="${handleEditorKey}" model="{self.controller.ModelName()}" workDir="${workDir}" disabled="{self.ComposerDisabled()}" focus="{self.FocusComposer()}" />
         <AskDialog open="${askOpen}" ask="{self.controller.Ask()}" onMove="${moveAsk}" onConfirm="${confirmAsk}" onDefaults="${respondDefaults}" />
+		<ApprovalDialog open="${approvalOpen}" approval="{self.controller.Approval()}" onAllowOnce="${approveOnce}" onAllowSession="${approveSession}" onDeny="${denyApproval}" />
     </Shell>
 </component>

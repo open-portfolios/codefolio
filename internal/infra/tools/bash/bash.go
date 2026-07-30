@@ -46,6 +46,7 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) domain.ToolResu
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "bash", "-c", command)
+	cmd.Dir = domain.ExecutionWorkDir(ctx)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

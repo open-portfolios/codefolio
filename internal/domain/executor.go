@@ -7,4 +7,4 @@ type Executor interface {
 	CollectResults() []ToolResultEvent
 }
 
-type ExecutorFactory func(registry ToolRegistry) Executor
+type ExecutorFactory func(registry ToolRegistry, workDir string) Executor

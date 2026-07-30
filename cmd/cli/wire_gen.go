@@ -9,6 +9,7 @@ package main
 import (
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/infra"
+	"github.com/open-portfolios/codefolio/internal/infra/approval"
 	"github.com/open-portfolios/codefolio/internal/infra/llm"
 	"github.com/open-portfolios/codefolio/internal/infra/session"
 	"github.com/open-portfolios/codefolio/internal/infra/tools"
@@ -19,18 +20,19 @@ import (
 
 // Injectors from wire.go:
 
-func InitApp(cfg *conf.Global, askUserCh chan askuser.Request) (*App, func(), error) {
+func InitApp(cfg *conf.Global, askUserCh chan askuser.Request, approvalCh chan *approval.Request) (*App, func(), error) {
 	driver, err := llm.NewDriver(cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	executorFactory := infra.NewExecutorFactory()
+	broker := approval.NewBroker(approvalCh)
+	executorFactory := infra.NewExecutorFactory(broker)
 	toolRegistry := tools.NewRegistry(askUserCh)
 	promptService := prompt.NewPromptService()
 	agent := svc.NewAgent(driver, executorFactory, toolRegistry, promptService)
 	domainSession := session.New()
 	environmentService := infra.NewEnvironmentService()
-	app := NewApp(cfg, agent, domainSession, promptService, environmentService, askUserCh)
+	app := NewApp(cfg, agent, domainSession, promptService, environmentService, askUserCh, approvalCh)
 	return app, func() {
 	}, nil
 }

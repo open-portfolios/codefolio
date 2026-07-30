@@ -85,6 +85,9 @@ func toolGlyph(name string) string {
 }
 
 func toolStyle(tool *controller.Tool) (style.Color, style.Attr) {
+	if tool.Outcome == "permission_denied" || tool.Outcome == "permission_aborted" {
+		return Theme.Warning, 0
+	}
 	if tool.IsError {
 		return Theme.Error, 0
 	}
@@ -98,6 +101,12 @@ func toolSummary(tool *controller.Tool, frame int) string {
 	label := toolGlyph(tool.Name) + " " + toolLabel(tool)
 	if !tool.Done {
 		return spinner[frame%len(spinner)] + " " + label
+	}
+	if tool.Outcome == "permission_denied" {
+		label = "⊘ Denied " + toolLabel(tool)
+	}
+	if tool.Outcome == "permission_aborted" {
+		label = "⊘ Approval cancelled " + toolLabel(tool)
 	}
 	if showOutput(tool.Name) {
 		if tool.Expanded {

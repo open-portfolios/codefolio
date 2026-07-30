@@ -33,5 +33,12 @@ func (self *App) Render(ctx renderer.Context) *renderer.Element {
 			OnMove:     self.moveAsk,
 			OnConfirm:  self.confirmAsk,
 			OnDefaults: self.respondDefaults,
+		}),
+		p1.NewApprovalDialog(ctx, p1.ApprovalDialogProps{
+			Open:           self.approvalOpen,
+			Approval:       self.controller.Approval(),
+			OnAllowOnce:    self.approveOnce,
+			OnAllowSession: self.approveSession,
+			OnDeny:         self.denyApproval,
 		})).Render(ctx)
 }

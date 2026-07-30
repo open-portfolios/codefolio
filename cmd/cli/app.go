@@ -13,6 +13,7 @@ import (
 	"github.com/open-portfolios/codefolio/cmd/cli/controller"
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
+	"github.com/open-portfolios/codefolio/internal/infra/approval"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
 	"github.com/open-portfolios/codefolio/internal/svc"
 )
@@ -24,42 +25,53 @@ type App struct {
 	viewport        *state.State[builtin.ViewportState]
 	spinner         *state.State[int]
 	askOpen         *state.State[bool]
+	approvalOpen    *state.State[bool]
 	handleEditorKey func(input.KeyEvent) bool
 	moveAsk         func(int)
 	confirmAsk      func()
 	respondDefaults func()
+	approveOnce     func()
+	approveSession  func()
+	denyApproval    func()
 	composerEnabled bool
 	composerFocus   bool
 }
 
-func NewApp(cfg *conf.Global, agent *svc.Agent, session domain.Session, promptService domain.PromptService, envService domain.EnvironmentService, askUserCh chan askuser.Request) *App {
+func NewApp(cfg *conf.Global, agent *svc.Agent, session domain.Session, promptService domain.PromptService, envService domain.EnvironmentService, askUserCh chan askuser.Request, approvalCh chan *approval.Request) *App {
 	workDir, _ := os.Getwd()
+	agent.WorkDir = workDir
 	env := envService.Detect(workDir)
 	env.Model = cfg.Model
 	session.AddSystemMessage(promptService.BuildSystemPrompt(env))
 	a := &App{
-		controller: controller.New(cfg, agent, session, askUserCh),
-		workDir:    shortPath(workDir),
-		editor:     state.New(builtin.TextareaState{PreferredColumn: -1}),
-		viewport:   state.New(builtin.ViewportState{FollowEnd: true}),
-		spinner:    state.New(0),
-		askOpen:    state.New(false),
+		controller:   controller.New(cfg, agent, session, askUserCh, approvalCh),
+		workDir:      shortPath(workDir),
+		editor:       state.New(builtin.TextareaState{PreferredColumn: -1}),
+		viewport:     state.New(builtin.ViewportState{FollowEnd: true}),
+		spinner:      state.New(0),
+		askOpen:      state.New(false),
+		approvalOpen: state.New(false),
 	}
 	a.handleEditorKey = a.editorKey
 	a.moveAsk = a.controller.MoveAsk
 	a.confirmAsk = a.controller.ConfirmAsk
 	a.respondDefaults = func() { a.controller.RespondAsk(true) }
+	a.approveOnce = a.controller.ApproveOnce
+	a.approveSession = a.controller.ApproveSession
+	a.denyApproval = a.controller.DenyApproval
 	return a
 }
 
 func (a *App) AttachApp(runtime *app.App) {
-	a.controller.Attach(runtime, func() { a.spinner.Set(a.spinner.Value()) }, a.askOpen.Set)
+	a.controller.Attach(runtime, func() { a.spinner.Set(a.spinner.Value()) }, a.askOpen.Set, a.approvalOpen.Set)
 	runtime.OnTimer(100*time.Millisecond, func() {
 		if a.controller.Running() {
 			a.spinner.Set((a.spinner.Value() + 1) % 4)
 		}
 	})
 }
+
+func (a *App) Shutdown() { a.controller.Shutdown() }
 
 func (a *App) KeyMap() input.KeyMap {
 	return input.KeyMap{input.OnStop(input.Ctrl('t'), func(input.KeyEvent) {
