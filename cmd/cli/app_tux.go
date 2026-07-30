@@ -19,6 +19,7 @@ func (self *App) Render(ctx renderer.Context) *renderer.Element {
 		p1.NewSidebar(ctx, p1.SidebarProps{
 			WorkDir: self.workDir,
 			Mcp:     self.MCPStatus(ctx),
+			Context: self.controller.ContextMetrics(),
 		}),
 		p1.NewPrompt(ctx, p1.PromptProps{
 			State:    self.editor,

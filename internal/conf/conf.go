@@ -51,7 +51,34 @@ type Struct struct {
 	BaseURL    string      `json:"baseUrl" validate:"required"`
 	Model      string      `json:"model" validate:"required"`
 	APIKey     string      `json:"apiKey" validate:"required"`
+	Context    Context     `json:"context"`
 	MCPServers []MCPServer `json:"mcpServers"`
+}
+
+// Context configures the request budget for the selected model. Zero values
+// use conservative defaults so existing configurations remain valid.
+type Context struct {
+	WindowTokens    int64 `json:"windowTokens"`
+	MaxOutputTokens int64 `json:"maxOutputTokens"`
+}
+
+const (
+	defaultContextWindowTokens = 32_768
+	defaultMaxOutputTokens     = 4_096
+)
+
+func (c Struct) ContextWindowTokens() int64 {
+	if c.Context.WindowTokens > 0 {
+		return c.Context.WindowTokens
+	}
+	return defaultContextWindowTokens
+}
+
+func (c Struct) MaxOutputTokens() int64 {
+	if c.Context.MaxOutputTokens > 0 {
+		return c.Context.MaxOutputTokens
+	}
+	return defaultMaxOutputTokens
 }
 
 type MCPServer struct {
@@ -83,6 +110,12 @@ func Load() (*Struct, error) {
 	}
 	if err := validateMCPServers(conf.MCPServers); err != nil {
 		return nil, err
+	}
+	if conf.Context.WindowTokens < 0 || conf.Context.MaxOutputTokens < 0 {
+		return nil, errors.New("context token limits must not be negative")
+	}
+	if conf.Context.WindowTokens > 0 && conf.Context.MaxOutputTokens >= conf.Context.WindowTokens {
+		return nil, errors.New("context maxOutputTokens must be smaller than windowTokens")
 	}
 	return &conf, nil
 }

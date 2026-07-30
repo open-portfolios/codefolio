@@ -121,6 +121,29 @@ func TestExpandableToolHeaderIsClickableAcrossItsText(t *testing.T) {
 	}
 }
 
+func TestTimelineProjectsContextNoticeInEventOrder(t *testing.T) {
+	messages := []*controller.Message{
+		{ID: "user-1", Role: "user", Content: "inspect the project"},
+		{ID: "assistant-2", Role: "assistant"},
+		{ID: "context-1", Role: "context", Content: "Compacted 4 earlier turn(s); retained 3 recent turn(s)"},
+		{ID: "assistant-3", Role: "assistant", Content: "I will continue from the retained context."},
+	}
+
+	items := projectTimeline(messages)
+	if len(items) != 3 {
+		t.Fatalf("item count = %d, want 3", len(items))
+	}
+	if items[1].Kind != TimelineContextNotice {
+		t.Fatalf("item[1].Kind = %v, want TimelineContextNotice", items[1].Kind)
+	}
+	if !strings.Contains(items[1].Content, "Compacted") {
+		t.Fatalf("context notice = %q", items[1].Content)
+	}
+	if items[2].Content != "I will continue from the retained context." {
+		t.Fatalf("assistant continuation = %q", items[2].Content)
+	}
+}
+
 func TestTranscriptWheelScrollsViewportWithoutTogglingItems(t *testing.T) {
 	viewport := state.New(builtin.ViewportState{FollowEnd: true})
 	transcript := NewTranscript(renderer.Context{MarkDirtyFn: func() {}}, TranscriptProps{

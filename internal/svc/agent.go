@@ -28,29 +28,32 @@ type pendingCall struct {
 }
 
 type Agent struct {
-	MaxIterations int
-	Mode          AgentMode
-	WorkDir       string
-	driver        llm.Driver
-	execFactory   domain.ExecutorFactory
-	toolRegistry  domain.ToolRegistry
-	promptService domain.PromptService
+	MaxIterations  int
+	Mode           AgentMode
+	WorkDir        string
+	driver         llm.Driver
+	execFactory    domain.ExecutorFactory
+	toolRegistry   domain.ToolRegistry
+	promptService  domain.PromptService
+	contextManager *ContextManager
 }
 
-func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistry domain.ToolRegistry, promptService domain.PromptService) *Agent {
+func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistry domain.ToolRegistry, promptService domain.PromptService, contextManager *ContextManager) *Agent {
 	return &Agent{
-		MaxIterations: defaultMaxIterations,
-		Mode:          ModePlan,
-		driver:        driver,
-		execFactory:   execFactory,
-		toolRegistry:  toolRegistry,
-		promptService: promptService,
+		MaxIterations:  defaultMaxIterations,
+		Mode:           ModePlan,
+		driver:         driver,
+		execFactory:    execFactory,
+		toolRegistry:   toolRegistry,
+		promptService:  promptService,
+		contextManager: contextManager,
 	}
 }
 
 func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struct, cb domain.EventVisitor) error {
 	var totalInputTokens int64
 	var totalOutputTokens int64
+	var totalTokens int64
 	iter := 0
 
 	maxIter := a.MaxIterations
@@ -65,22 +68,37 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struc
 			return fmt.Errorf("max agent iterations (%d) exceeded", maxIter)
 		}
 
+		requestMessages := session.Messages()
 		if a.Mode == ModePlan {
 			planExists := fileExists(DefaultPlanFilePath)
 			reminder := a.promptService.BuildPlanModeReminder(DefaultPlanFilePath, planExists, iter)
-			session.AddSystemMessage(reminder)
+			// Runtime reminders guide the next request but are not conversation
+			// history. Keeping them out of the ledger prevents repeated plan
+			// instructions from consuming the compaction budget.
+			requestMessages = append(requestMessages, domain.ChatMessage{Role: llm.RoleSystem, Content: reminder})
 		}
 
-		messages := ChatMessagesToLLM(session.Messages())
 		schemas := a.toolRegistry.GetAllSchemas()
+		preparation, err := a.contextManager.Prepare(ctx, requestMessages, schemas, cfg)
+		if err != nil {
+			cb.VisitError(domain.ErrorEvent{Err: err})
+			return err
+		}
+		session.SetContextMetrics(preparation.Metrics)
+		for _, event := range preparation.Events {
+			_ = cb.VisitContext(event)
+		}
+		messages := ChatMessagesToLLM(preparation.Messages)
 
 		deltaCh, errCh := a.driver.Stream(ctx, messages,
 			llm.WithModel(cfg.Model),
+			llm.WithMaxTokens(cfg.MaxOutputTokens()),
 			llm.WithTools(schemas),
 		)
 
 		var toolCalls []pendingCall
 		hasToolUse := false
+		collector := &agentCollector{cb: cb, toolCalls: &toolCalls, session: session}
 
 	loop:
 		for {
@@ -90,14 +108,11 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struc
 					break loop
 				}
 
-				c := &agentCollector{cb: cb, toolCalls: &toolCalls, session: session}
-				if err := delta.Accept(c); err != nil {
+				if err := delta.Accept(collector); err != nil {
 					cb.VisitError(domain.ErrorEvent{Err: err})
 					return err
 				}
-				totalInputTokens += c.inputTokens
-				totalOutputTokens += c.outputTokens
-				if c.stopReason == "tool_use" {
+				if collector.stopReason == "tool_use" {
 					hasToolUse = true
 					session.FinishAssistantMessage()
 				}
@@ -118,10 +133,20 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struc
 			}
 		default:
 		}
+		totalInputTokens += collector.inputTokens
+		totalOutputTokens += collector.outputTokens
+		totalTokens += collector.totalTokens
+		if collector.hasUsage {
+			metrics := preparation.Metrics
+			metrics.ActualInputTokens = collector.inputTokens
+			session.SetContextMetrics(metrics)
+			_ = cb.VisitContext(domain.ContextEvent{Metrics: metrics, Kind: domain.ContextMeasured})
+		}
 
 		cb.VisitUsage(domain.UsageEvent{
 			InputTokens:  totalInputTokens,
 			OutputTokens: totalOutputTokens,
+			TotalTokens:  totalTokens,
 		})
 
 		if !hasToolUse {
@@ -184,6 +209,8 @@ type agentCollector struct {
 	stopReason   string
 	inputTokens  int64
 	outputTokens int64
+	totalTokens  int64
+	hasUsage     bool
 }
 
 func (c *agentCollector) VisitMessage(d llm.MessageDelta) error {
@@ -209,8 +236,13 @@ func (c *agentCollector) VisitThinkingStart(d llm.ThinkingStartDelta) error {
 }
 
 func (c *agentCollector) VisitUsage(d llm.UsageDelta) error {
-	c.inputTokens += int64(d.InputTokens)
-	c.outputTokens += int64(d.OutputTokens)
+	if !d.Final {
+		return nil
+	}
+	c.inputTokens = int64(d.InputTokens)
+	c.outputTokens = int64(d.OutputTokens)
+	c.totalTokens = int64(d.TotalTokens)
+	c.hasUsage = true
 	return nil
 }
 

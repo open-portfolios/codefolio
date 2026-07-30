@@ -15,6 +15,7 @@ type Session interface {
 	LastMessage() *ChatMessage
 	Messages() []ChatMessage
 	MessageCount() int
-	ContextUsage() float64
+	SetContextMetrics(ContextMetrics)
+	ContextUsage() ContextMetrics
 	Duration() time.Duration
 }

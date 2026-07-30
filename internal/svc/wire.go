@@ -6,4 +6,4 @@ import (
 	"github.com/open-portfolios/codefolio/internal/svc/prompt"
 )
 
-var Set = wire.NewSet(NewAgent, prompt.NewPromptService)
+var Set = wire.NewSet(NewContextManager, NewAgent, prompt.NewPromptService)

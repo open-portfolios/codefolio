@@ -107,6 +107,18 @@ func (v *visitor) VisitUsage(e domain.UsageEvent) error {
 		}
 	})
 }
+func (v *visitor) VisitContext(e domain.ContextEvent) error {
+	return v.post(func() {
+		if v.runID == v.controller.runID {
+			v.controller.contextMetrics = e.Metrics
+			if e.Kind == domain.ContextCompacted || e.Kind == domain.ContextToolOutputTrimmed {
+				v.controller.AddContextNotice(e)
+				return
+			}
+			v.controller.invalidate()
+		}
+	})
+}
 func (v *visitor) VisitError(e domain.ErrorEvent) error {
 	return v.post(func() { v.controller.applyError(v.runID, e.Err) })
 }

@@ -46,17 +46,17 @@ func (self *Sidebar) Render(ctx renderer.Context) *renderer.Element {
 				Bg:    Theme.BackgroundPanel,
 			}),
 			builtin.CreateText(ctx, builtin.TextProps{
-				Text: "0 tokens",
+				Text: self.ContextTokens(),
 				Fg:   Theme.TextMuted,
 				Bg:   Theme.BackgroundPanel,
 			}),
 			builtin.CreateText(ctx, builtin.TextProps{
-				Text: "0% used",
+				Text: self.ContextPercent(),
 				Fg:   Theme.TextMuted,
 				Bg:   Theme.BackgroundPanel,
 			}),
 			builtin.CreateText(ctx, builtin.TextProps{
-				Text: "$0.00 spent",
+				Text: self.ContextReserve(),
 				Fg:   Theme.TextMuted,
 				Bg:   Theme.BackgroundPanel,
 			}),

@@ -11,6 +11,7 @@ type EventVisitor interface {
 	VisitTurnComplete(TurnCompleteEvent) error
 	VisitLoopComplete(LoopCompleteEvent) error
 	VisitUsage(UsageEvent) error
+	VisitContext(ContextEvent) error
 	VisitError(ErrorEvent) error
 }
 
@@ -24,6 +25,7 @@ func (BaseEventVisitor) VisitToolResult(ToolResultEvent) error     { return nil 
 func (BaseEventVisitor) VisitTurnComplete(TurnCompleteEvent) error { return nil }
 func (BaseEventVisitor) VisitLoopComplete(LoopCompleteEvent) error { return nil }
 func (BaseEventVisitor) VisitUsage(UsageEvent) error               { return nil }
+func (BaseEventVisitor) VisitContext(ContextEvent) error           { return nil }
 func (BaseEventVisitor) VisitError(ErrorEvent) error               { return nil }
 
 type StreamEvent struct{ Content string }
@@ -47,5 +49,19 @@ type ToolResultEvent struct {
 
 type TurnCompleteEvent struct{ Turn int }
 type LoopCompleteEvent struct{ TotalTurns int }
-type UsageEvent struct{ InputTokens, OutputTokens int64 }
+type UsageEvent struct{ InputTokens, OutputTokens, TotalTokens int64 }
+type ContextEvent struct {
+	Metrics ContextMetrics
+	Kind    ContextEventKind
+	Detail  string
+}
+
+type ContextEventKind string
+
+const (
+	ContextMeasured          ContextEventKind = "measured"
+	ContextToolOutputTrimmed ContextEventKind = "tool_output_trimmed"
+	ContextCompacted         ContextEventKind = "compacted"
+)
+
 type ErrorEvent struct{ Err error }

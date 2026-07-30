@@ -43,6 +43,7 @@ type UsageDelta struct {
 	InputTokens  uint64
 	OutputTokens uint64
 	TotalTokens  uint64
+	Final        bool
 }
 
 type ToolCallStartDelta struct {

@@ -80,6 +80,8 @@ type Controller struct {
 	draft           string
 	inputTokens     int64
 	outputTokens    int64
+	contextMetrics  domain.ContextMetrics
+	contextNoticeID uint64
 	ask             AskState
 	approval        ApprovalState
 }
@@ -131,12 +133,13 @@ func (c *Controller) Status() string {
 	return "idle"
 }
 
-func (c *Controller) InputTokens() int64      { return c.inputTokens }
-func (c *Controller) OutputTokens() int64     { return c.outputTokens }
-func (c *Controller) Running() bool           { return c.streaming == StreamRunning }
-func (c *Controller) Cancelling() bool        { return c.cancelling }
-func (c *Controller) Ask() AskState           { return c.ask }
-func (c *Controller) Approval() ApprovalState { return c.approval }
+func (c *Controller) InputTokens() int64                    { return c.inputTokens }
+func (c *Controller) OutputTokens() int64                   { return c.outputTokens }
+func (c *Controller) ContextMetrics() domain.ContextMetrics { return c.contextMetrics }
+func (c *Controller) Running() bool                         { return c.streaming == StreamRunning }
+func (c *Controller) Cancelling() bool                      { return c.cancelling }
+func (c *Controller) Ask() AskState                         { return c.ask }
+func (c *Controller) Approval() ApprovalState               { return c.approval }
 
 func (c *Controller) Tick() {
 	if c.streaming == StreamRunning {
@@ -273,6 +276,19 @@ func (c *Controller) currentAssistant() *Message {
 		}
 	}
 	return nil
+}
+
+func (c *Controller) AddContextNotice(event domain.ContextEvent) {
+	if event.Detail == "" {
+		return
+	}
+	c.contextNoticeID++
+	c.messages = append(c.messages, &Message{
+		ID:      fmt.Sprintf("context-%d", c.contextNoticeID),
+		Role:    "context",
+		Content: event.Detail,
+	})
+	c.invalidate()
 }
 
 func (c *Controller) finish(reason string) {

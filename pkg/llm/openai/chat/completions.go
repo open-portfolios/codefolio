@@ -68,50 +68,57 @@ func (c *CompletionsDriver) Stream(ctx context.Context, messages []llm.Message, 
 				}
 			}
 
-			m := llm.MessageDelta{
-				Role:    event.Choices[0].Delta.Role,
-				Content: event.Choices[0].Delta.Content,
-			}
-			if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, m); err != nil {
-				errChan <- err
-				return
-			}
-
-			for _, tc := range event.Choices[0].Delta.ToolCalls {
-				if tc.ID != "" {
-					start := llm.ToolCallStartDelta{
-						Index: int(tc.Index),
-						ID:    tc.ID,
-						Name:  tc.Function.Name,
-					}
-					if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, start); err != nil {
-						errChan <- err
-						return
-					}
+			if len(event.Choices) > 0 {
+				m := llm.MessageDelta{
+					Role:    event.Choices[0].Delta.Role,
+					Content: event.Choices[0].Delta.Content,
 				}
-				if tc.Function.Arguments != "" {
-					input := llm.ToolCallInputDelta{
-						Index: int(tc.Index),
-						Input: tc.Function.Arguments,
-					}
-					if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, input); err != nil {
-						errChan <- err
-						return
-					}
+				if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, m); err != nil {
+					errChan <- err
+					return
 				}
 			}
 
-			u := llm.UsageDelta{
-				InputTokens:  uint64(event.Usage.PromptTokens),
-				OutputTokens: uint64(event.Usage.CompletionTokens),
-				TotalTokens:  uint64(event.Usage.TotalTokens),
-			}
-			if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, u); err != nil {
-				errChan <- err
-				return
+			if len(event.Choices) > 0 {
+				for _, tc := range event.Choices[0].Delta.ToolCalls {
+					if tc.ID != "" {
+						start := llm.ToolCallStartDelta{
+							Index: int(tc.Index),
+							ID:    tc.ID,
+							Name:  tc.Function.Name,
+						}
+						if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, start); err != nil {
+							errChan <- err
+							return
+						}
+					}
+					if tc.Function.Arguments != "" {
+						input := llm.ToolCallInputDelta{
+							Index: int(tc.Index),
+							Input: tc.Function.Arguments,
+						}
+						if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, input); err != nil {
+							errChan <- err
+							return
+						}
+					}
+				}
 			}
 
-			if event.Choices[0].FinishReason != "" {
+			if event.Usage.TotalTokens > 0 {
+				u := llm.UsageDelta{
+					InputTokens:  uint64(event.Usage.PromptTokens),
+					OutputTokens: uint64(event.Usage.CompletionTokens),
+					TotalTokens:  uint64(event.Usage.TotalTokens),
+					Final:        true,
+				}
+				if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, u); err != nil {
+					errChan <- err
+					return
+				}
+			}
+
+			if len(event.Choices) > 0 && event.Choices[0].FinishReason != "" {
 				stopReason := "end_turn"
 				if event.Choices[0].FinishReason == "tool_calls" {
 					stopReason = "tool_use"

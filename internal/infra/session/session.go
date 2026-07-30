@@ -13,6 +13,7 @@ type Session struct {
 	messages  []domain.ChatMessage
 	createdAt time.Time
 	msgSeq    int
+	context   domain.ContextMetrics
 }
 
 func New() domain.Session {
@@ -128,9 +129,9 @@ func (s *Session) MessageCount() int {
 	return len(s.messages)
 }
 
-func (s *Session) ContextUsage() float64 {
-	return 0.0
-}
+func (s *Session) SetContextMetrics(metrics domain.ContextMetrics) { s.context = metrics }
+
+func (s *Session) ContextUsage() domain.ContextMetrics { return s.context }
 
 func (s *Session) Duration() time.Duration {
 	return time.Since(s.createdAt)

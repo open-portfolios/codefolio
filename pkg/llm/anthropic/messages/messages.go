@@ -148,6 +148,7 @@ func (d *Driver) Stream(ctx context.Context, messages []llm.Message, options ...
 					InputTokens:  uint64(e.Usage.InputTokens),
 					OutputTokens: uint64(e.Usage.OutputTokens),
 					TotalTokens:  uint64(e.Usage.InputTokens) + uint64(e.Usage.OutputTokens),
+					Final:        true,
 				}
 				if err := stdx.CancellableSend[llm.Delta](ctx, deltaChan, u); err != nil {
 					errChan <- err

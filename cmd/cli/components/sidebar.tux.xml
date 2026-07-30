@@ -5,9 +5,9 @@
             <text text="${workDir}" style="dim" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
             <text text="" bg="{Theme.BackgroundPanel}" />
             <text text="Context" style="bold" fg="{Theme.Text}" bg="{Theme.BackgroundPanel}" />
-            <text text="0 tokens" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
-            <text text="0% used" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
-            <text text="$0.00 spent" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
+            <text text="{self.ContextTokens()}" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
+            <text text="{self.ContextPercent()}" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
+            <text text="{self.ContextReserve()}" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
             <text text="" bg="{Theme.BackgroundPanel}" />
             <text text="MCP" style="bold" fg="{Theme.Text}" bg="{Theme.BackgroundPanel}" />
             <text text="${mcp.Label}" fg="{self.MCPColor()}" bg="{Theme.BackgroundPanel}" />
