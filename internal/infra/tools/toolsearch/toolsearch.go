@@ -11,6 +11,7 @@ import (
 )
 
 type Registry interface {
+	domain.ToolRegistrar
 	MarkDiscovered(name string)
 	FindDeferredByNames(names []string) []map[string]any
 	SearchDeferred(query string, maxResults int) []map[string]any
@@ -57,7 +58,7 @@ func (t *ToolSearch) Schema() map[string]any {
 	}
 }
 
-func (t *ToolSearch) Execute(_ context.Context, args map[string]any) domain.ToolResult {
+func (t *ToolSearch) Execute(ctx context.Context, args map[string]any) domain.ToolResult {
 	query, _ := args["query"].(string)
 	if query == "" {
 		return domain.ToolResult{Output: "Error: query is required", IsError: true}
@@ -70,7 +71,6 @@ func (t *ToolSearch) Execute(_ context.Context, args map[string]any) domain.Tool
 	if maxResults > 20 {
 		maxResults = 20
 	}
-
 	var schemas []map[string]any
 
 	if after, ok := strings.CutPrefix(query, "select:"); ok {

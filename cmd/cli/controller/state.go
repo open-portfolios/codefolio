@@ -58,7 +58,7 @@ type ApprovalState struct {
 }
 
 type Controller struct {
-	cfg        *conf.Global
+	cfg        *conf.Struct
 	agent      *svc.Agent
 	session    domain.Session
 	askUserCh  <-chan askuser.Request
@@ -83,7 +83,7 @@ type Controller struct {
 	approval        ApprovalState
 }
 
-func New(cfg *conf.Global, agent *svc.Agent, session domain.Session, askUserCh chan askuser.Request, approvalCh chan *approval.Request) *Controller {
+func New(cfg *conf.Struct, agent *svc.Agent, session domain.Session, askUserCh chan askuser.Request, approvalCh chan *approval.Request) *Controller {
 	return &Controller{cfg: cfg, agent: agent, session: session, askUserCh: askUserCh, approvalCh: approvalCh, historyAt: -1}
 }
 

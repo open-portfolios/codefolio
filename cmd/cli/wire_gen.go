@@ -11,6 +11,7 @@ import (
 	"github.com/open-portfolios/codefolio/internal/infra"
 	"github.com/open-portfolios/codefolio/internal/infra/approval"
 	"github.com/open-portfolios/codefolio/internal/infra/llm"
+	"github.com/open-portfolios/codefolio/internal/infra/mcp"
 	"github.com/open-portfolios/codefolio/internal/infra/session"
 	"github.com/open-portfolios/codefolio/internal/infra/tools"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
@@ -20,19 +21,24 @@ import (
 
 // Injectors from wire.go:
 
-func InitApp(cfg *conf.Global, askUserCh chan askuser.Request, approvalCh chan *approval.Request) (*App, func(), error) {
+func InitApp(cfg *conf.Struct, askUserCh chan askuser.Request, approvalCh chan *approval.Request) (*App, func(), error) {
 	driver, err := llm.NewDriver(cfg)
 	if err != nil {
 		return nil, nil, err
 	}
 	broker := approval.NewBroker(approvalCh)
 	executorFactory := infra.NewExecutorFactory(broker)
-	toolRegistry := tools.NewRegistry(askUserCh)
+	registry := tools.NewRegistry(askUserCh)
 	promptService := prompt.NewPromptService()
-	agent := svc.NewAgent(driver, executorFactory, toolRegistry, promptService)
+	agent := svc.NewAgent(driver, executorFactory, registry, promptService)
 	domainSession := session.New()
 	environmentService := infra.NewEnvironmentService()
-	app := NewApp(cfg, agent, domainSession, promptService, environmentService, askUserCh, approvalCh)
+	manager, cleanup, err := mcp.NewManager(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	app := NewApp(cfg, agent, domainSession, promptService, environmentService, manager, registry, askUserCh, approvalCh)
 	return app, func() {
+		cleanup()
 	}, nil
 }

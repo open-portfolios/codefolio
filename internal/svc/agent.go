@@ -46,7 +46,7 @@ func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistr
 	}
 }
 
-func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Global, cb domain.EventVisitor) error {
+func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struct, cb domain.EventVisitor) error {
 	var totalInputTokens int64
 	var totalOutputTokens int64
 	iter := 0

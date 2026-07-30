@@ -1,6 +1,7 @@
 package components
 
 import (
+	"strings"
 	"time"
 
 	"github.com/cylixlee/tux/style"
@@ -68,6 +69,9 @@ func projectTimeline(messages []*controller.Message) []TimelineItem {
 }
 
 func toolGlyph(name string) string {
+	if isMCPTool(name) {
+		return "◇"
+	}
 	switch name {
 	case "ReadFile":
 		return "→"
@@ -120,3 +124,5 @@ func toolSummary(tool *controller.Tool, frame int) string {
 	}
 	return label
 }
+
+func isMCPTool(name string) bool { return strings.HasPrefix(name, "mcp__") }

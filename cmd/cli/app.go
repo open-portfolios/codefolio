@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -10,10 +12,12 @@ import (
 	"github.com/cylixlee/tux/input"
 	"github.com/cylixlee/tux/renderer"
 	"github.com/cylixlee/tux/state"
+	"github.com/open-portfolios/codefolio/cmd/cli/components"
 	"github.com/open-portfolios/codefolio/cmd/cli/controller"
 	"github.com/open-portfolios/codefolio/internal/conf"
 	"github.com/open-portfolios/codefolio/internal/domain"
 	"github.com/open-portfolios/codefolio/internal/infra/approval"
+	"github.com/open-portfolios/codefolio/internal/infra/mcp"
 	"github.com/open-portfolios/codefolio/internal/infra/tools/askuser"
 	"github.com/open-portfolios/codefolio/internal/svc"
 )
@@ -26,6 +30,9 @@ type App struct {
 	spinner         *state.State[int]
 	askOpen         *state.State[bool]
 	approvalOpen    *state.State[bool]
+	mcpStatus       *state.State[components.MCPStatus]
+	mcpManager      *mcp.Manager
+	toolRegistrar   domain.ToolRegistrar
 	handleEditorKey func(input.KeyEvent) bool
 	moveAsk         func(int)
 	confirmAsk      func()
@@ -37,20 +44,23 @@ type App struct {
 	composerFocus   bool
 }
 
-func NewApp(cfg *conf.Global, agent *svc.Agent, session domain.Session, promptService domain.PromptService, envService domain.EnvironmentService, askUserCh chan askuser.Request, approvalCh chan *approval.Request) *App {
+func NewApp(cfg *conf.Struct, agent *svc.Agent, session domain.Session, promptService domain.PromptService, envService domain.EnvironmentService, mcpManager *mcp.Manager, toolRegistrar domain.ToolRegistrar, askUserCh chan askuser.Request, approvalCh chan *approval.Request) *App {
 	workDir, _ := os.Getwd()
 	agent.WorkDir = workDir
 	env := envService.Detect(workDir)
 	env.Model = cfg.Model
 	session.AddSystemMessage(promptService.BuildSystemPrompt(env))
 	a := &App{
-		controller:   controller.New(cfg, agent, session, askUserCh, approvalCh),
-		workDir:      shortPath(workDir),
-		editor:       state.New(builtin.TextareaState{PreferredColumn: -1}),
-		viewport:     state.New(builtin.ViewportState{FollowEnd: true}),
-		spinner:      state.New(0),
-		askOpen:      state.New(false),
-		approvalOpen: state.New(false),
+		controller:    controller.New(cfg, agent, session, askUserCh, approvalCh),
+		workDir:       shortPath(workDir),
+		editor:        state.New(builtin.TextareaState{PreferredColumn: -1}),
+		viewport:      state.New(builtin.ViewportState{FollowEnd: true}),
+		spinner:       state.New(0),
+		askOpen:       state.New(false),
+		approvalOpen:  state.New(false),
+		mcpStatus:     state.New(mcpStatusFor(mcpManager.Summary(), false)),
+		mcpManager:    mcpManager,
+		toolRegistrar: toolRegistrar,
 	}
 	a.handleEditorKey = a.editorKey
 	a.moveAsk = a.controller.MoveAsk
@@ -69,6 +79,55 @@ func (a *App) AttachApp(runtime *app.App) {
 			a.spinner.Set((a.spinner.Value() + 1) % 4)
 		}
 	})
+	a.startMCP(runtime)
+}
+
+func (a *App) startMCP(runtime *app.App) {
+	if a.mcpManager == nil || a.toolRegistrar == nil {
+		return
+	}
+	summary := a.mcpManager.Summary()
+	if summary.Configured == 0 {
+		return
+	}
+	a.mcpStatus.Set(mcpStatusFor(summary, true))
+	go func() {
+		tools, err := a.mcpManager.Discover(context.Background())
+		if err == nil {
+			for _, tool := range tools {
+				if registerErr := a.toolRegistrar.Register(tool); registerErr != nil {
+					err = fmt.Errorf("register MCP tool: %w", registerErr)
+					break
+				}
+			}
+		}
+		_ = runtime.Dispatch(context.Background(), func() {
+			a.mcpStatus.Set(mcpStatusFor(a.mcpManager.Summary(), false))
+		})
+	}()
+}
+
+func (a *App) MCPStatus(ctx renderer.Context) components.MCPStatus {
+	if a.mcpStatus == nil {
+		return mcpStatusFor(mcp.Summary{}, false)
+	}
+	return a.mcpStatus.Get(ctx)
+}
+
+func mcpStatusFor(summary mcp.Summary, connecting bool) components.MCPStatus {
+	if summary.Configured == 0 {
+		return components.MCPStatus{Label: "○ No servers configured", Color: components.Theme.TextMuted}
+	}
+	if connecting {
+		return components.MCPStatus{Label: fmt.Sprintf("◌ Connecting %d server(s)...", summary.Configured), Color: components.Theme.Warning}
+	}
+	if summary.Ready == summary.Configured {
+		return components.MCPStatus{Label: fmt.Sprintf("● %d server(s) · %d tools", summary.Ready, summary.Tools), Color: components.Theme.Success}
+	}
+	if summary.Ready > 0 {
+		return components.MCPStatus{Label: fmt.Sprintf("▲ %d ready · %d unavailable", summary.Ready, summary.Unavailable), Color: components.Theme.Warning}
+	}
+	return components.MCPStatus{Label: fmt.Sprintf("× %d server(s) unavailable", summary.Unavailable), Color: components.Theme.Error}
 }
 
 func (a *App) Shutdown() { a.controller.Shutdown() }

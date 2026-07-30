@@ -19,7 +19,7 @@ import (
 func TestAppRendersOpenCodeSessionSurfaces(t *testing.T) {
 	mockTerminal := terminal.NewMock(130, 30)
 	root := &App{
-		controller:   controller.New(&conf.Global{Model: "test-model"}, nil, nil, nil, nil),
+		controller:   controller.New(&conf.Struct{Model: "test-model"}, nil, nil, nil, nil),
 		workDir:      "~/workspace",
 		editor:       state.New(builtin.TextareaState{PreferredColumn: -1}),
 		viewport:     state.New(builtin.ViewportState{FollowEnd: true}),
@@ -76,7 +76,7 @@ func TestAppRendersOpenCodeSessionSurfaces(t *testing.T) {
 			t.Fatalf("screen cell (%d, %d) background = %#v, want %#v", point.x, point.y, cell.Style.Bg, point.bg)
 		}
 	}
-	for _, expected := range []string{"Build · test-model DeepSeek · High", "Context", "LSP", "Todo"} {
+	for _, expected := range []string{"Build · test-model DeepSeek · High", "Context", "MCP", "No servers configured", "Todo"} {
 		found := false
 		for y := range 30 {
 			if strings.Contains(mockTerminal.Line(y), expected) {

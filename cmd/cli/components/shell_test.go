@@ -22,7 +22,7 @@ func TestShellShowsSidebarOnlyAboveOpenCodeBreakpoint(t *testing.T) {
 		{width: 121, wantSidebar: true},
 	} {
 		ctx := renderer.Context{SizeFn: func() (int, int) { return test.width, 30 }}
-		shell := NewShell(ctx, ShellProps{}, shellTestComponent{}, shellTestComponent{}, shellTestComponent{}, shellTestComponent{})
+		shell := NewShell(ctx, ShellProps{}, shellTestComponent{}, shellTestComponent{}, shellTestComponent{}, shellTestComponent{}, shellTestComponent{})
 		root := shell.Render(ctx)
 		if got := len(root.Children()) == 2; got != test.wantSidebar {
 			t.Errorf("width %d sidebar visible = %t, want %t", test.width, got, test.wantSidebar)

@@ -9,8 +9,8 @@
             <text text="0% used" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
             <text text="$0.00 spent" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />
             <text text="" bg="{Theme.BackgroundPanel}" />
-            <text text="LSP" style="bold" fg="{Theme.Text}" bg="{Theme.BackgroundPanel}" />
-            <text text="• 1 server connected" fg="{Theme.Success}" bg="{Theme.BackgroundPanel}" />
+            <text text="MCP" style="bold" fg="{Theme.Text}" bg="{Theme.BackgroundPanel}" />
+            <text text="${mcp.Label}" fg="{self.MCPColor()}" bg="{Theme.BackgroundPanel}" />
             <text text="" bg="{Theme.BackgroundPanel}" />
             <text text="Todo" style="bold" fg="{Theme.Text}" bg="{Theme.BackgroundPanel}" />
             <text text="○ Inspect the workspace" fg="{Theme.TextMuted}" bg="{Theme.BackgroundPanel}" />

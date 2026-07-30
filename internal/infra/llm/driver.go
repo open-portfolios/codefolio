@@ -14,7 +14,7 @@ import (
 	openaichat "github.com/open-portfolios/codefolio/pkg/llm/openai/chat"
 )
 
-func NewDriver(cfg *conf.Global) (llm.Driver, error) {
+func NewDriver(cfg *conf.Struct) (llm.Driver, error) {
 	switch cfg.Protocol {
 	case "anthropic":
 		client := anthropic.NewClient(

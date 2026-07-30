@@ -1,0 +1,17 @@
+{
+    "protocol": "openai",
+    "baseUrl": "https://api.deepseek.com",
+    "model": "deepseek-v4-pro",
+    "apiKey": "${DEEPSEEK_API_KEY}",
+    "mcpServers": [
+        {
+            "name": "chrome-devtools",
+            "transport": "stdio",
+            "command": "npx",
+            "args": [
+                "-y",
+                "chrome-devtools-mcp@latest"
+            ]
+        }
+    ]
+}

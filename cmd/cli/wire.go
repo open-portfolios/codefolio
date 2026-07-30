@@ -13,7 +13,7 @@ import (
 	"github.com/open-portfolios/codefolio/internal/svc"
 )
 
-func InitApp(cfg *conf.Global, askUserCh chan askuser.Request, approvalCh chan *approval.Request) (*App, func(), error) {
+func InitApp(cfg *conf.Struct, askUserCh chan askuser.Request, approvalCh chan *approval.Request) (*App, func(), error) {
 	wire.Build(infra.Set, svc.Set, approval.NewBroker, wire.Bind(new(domain.Authorizer), new(*approval.Broker)), NewApp)
 	return nil, nil, nil
 }

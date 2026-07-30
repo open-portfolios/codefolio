@@ -8,7 +8,7 @@
 
     <Shell>
         <Transcript messages="{self.controller.Messages()}" viewport="${viewport}" frame="{self.spinner.Get(ctx)}" onToggleThinking="{self.controller.ToggleThinking}" onToggleTool="{self.controller.ToggleTool}" />
-        <Sidebar workDir="${workDir}" />
+        <Sidebar workDir="${workDir}" mcp="{self.MCPStatus(ctx)}" />
         <Prompt state="${editor}" onKey="${handleEditorKey}" model="{self.controller.ModelName()}" workDir="${workDir}" disabled="{self.ComposerDisabled()}" focus="{self.FocusComposer()}" />
         <AskDialog open="${askOpen}" ask="{self.controller.Ask()}" onMove="${moveAsk}" onConfirm="${confirmAsk}" onDefaults="${respondDefaults}" />
 		<ApprovalDialog open="${approvalOpen}" approval="{self.controller.Approval()}" onAllowOnce="${approveOnce}" onAllowSession="${approveSession}" onDeny="${denyApproval}" />

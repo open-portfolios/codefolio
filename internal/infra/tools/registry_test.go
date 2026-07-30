@@ -94,6 +94,26 @@ func TestRegistryGetDeferredToolNames(t *testing.T) {
 	}
 }
 
+func TestRegistryRejectsDuplicateTools(t *testing.T) {
+	r := newRegistry()
+	if err := r.Register(&stubTool{name: "A"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Register(&stubTool{name: "A"}); err == nil {
+		t.Fatal("expected duplicate tool error")
+	}
+}
+
+func TestRegistryReturnsSchemasInNameOrder(t *testing.T) {
+	r := newRegistry()
+	_ = r.Register(&stubTool{name: "B"})
+	_ = r.Register(&stubTool{name: "A"})
+	schemas := r.GetAllSchemas()
+	if schemas[0]["name"] != "A" || schemas[1]["name"] != "B" {
+		t.Fatalf("schemas are not stable: %#v", schemas)
+	}
+}
+
 type stubTool struct{ name string }
 
 func (s *stubTool) Name() string                  { return s.name }

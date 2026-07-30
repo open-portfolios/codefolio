@@ -15,6 +15,10 @@ type ToolRegistry interface {
 	GetAllSchemas() []map[string]any
 }
 
+type ToolRegistrar interface {
+	Register(Tool) error
+}
+
 type ToolResult struct {
 	Output  string
 	IsError bool

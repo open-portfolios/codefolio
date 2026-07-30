@@ -64,14 +64,14 @@ func (self *Sidebar) Render(ctx renderer.Context) *renderer.Element {
 				Bg: Theme.BackgroundPanel,
 			}),
 			builtin.CreateText(ctx, builtin.TextProps{
-				Text:  "LSP",
+				Text:  "MCP",
 				Style: style.Bold,
 				Fg:    Theme.Text,
 				Bg:    Theme.BackgroundPanel,
 			}),
 			builtin.CreateText(ctx, builtin.TextProps{
-				Text: "• 1 server connected",
-				Fg:   Theme.Success,
+				Text: self.mcp.Label,
+				Fg:   self.MCPColor(),
 				Bg:   Theme.BackgroundPanel,
 			}),
 			builtin.CreateText(ctx, builtin.TextProps{

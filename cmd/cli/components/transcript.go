@@ -283,6 +283,13 @@ func inlineCode(text string) string {
 	return strings.ReplaceAll(text, "`", "'")
 }
 func toolLabel(tool *controller.Tool) string {
+	if isMCPTool(tool.Name) {
+		parts := strings.Split(tool.Name, "__")
+		if len(parts) >= 3 {
+			return "MCP · " + parts[1] + " / " + strings.Join(parts[2:], "__")
+		}
+		return "MCP · " + tool.Name
+	}
 	verb := map[string]string{"ReadFile": "Read", "WriteFile": "Wrote", "EditFile": "Edited", "Glob": "Glob", "Grep": "Grep", "Bash": "Bash", "AskUserQuestion": "Question"}[tool.Name]
 	if verb == "" {
 		verb = tool.Name
@@ -300,7 +307,9 @@ func toolLabel(tool *controller.Tool) string {
 	}
 	return verb + " " + value
 }
-func showOutput(name string) bool { return name == "Bash" || name == "AskUserQuestion" }
+func showOutput(name string) bool {
+	return name == "Bash" || name == "AskUserQuestion" || isMCPTool(name)
+}
 
 func previewOutput(output string, width, maxLines int, messageID, toolID string, fg style.Color) []visualLine {
 	lines := wrap("     "+output, width, fg, 0, "", messageID, toolID)
