@@ -29,8 +29,54 @@ const (
 type MemoryService struct {
 	driver  llm.Driver
 	mu      sync.Mutex
+	filesMu sync.Mutex
 	running bool
 	pending []domain.ChatMessage
+}
+
+type MemoryEntry struct {
+	ID          string
+	Scope       string
+	Name        string
+	Description string
+}
+
+func (m *MemoryService) List(workDir string) []MemoryEntry {
+	root := projectRoot(workDir)
+	userRoot, projectMemoryRoot := memoryRoots(root)
+	candidates := append(scanMemory(userRoot, "user"), scanMemory(projectMemoryRoot, "project")...)
+	entries := make([]MemoryEntry, 0, len(candidates))
+	for _, candidate := range candidates {
+		entries = append(entries, MemoryEntry{ID: candidate.id, Scope: candidate.scope, Name: candidate.name, Description: candidate.description})
+	}
+	return entries
+}
+
+func (m *MemoryService) Clear(workDir string) (int, error) {
+	m.filesMu.Lock()
+	defer m.filesMu.Unlock()
+	root := projectRoot(workDir)
+	userRoot, projectMemoryRoot := memoryRoots(root)
+	removed := 0
+	for _, dir := range []string{userRoot, projectMemoryRoot} {
+		entries, err := os.ReadDir(dir)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return removed, err
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+				continue
+			}
+			if err := os.Remove(filepath.Join(dir, entry.Name())); err != nil {
+				return removed, err
+			}
+			removed++
+		}
+	}
+	return removed, nil
 }
 
 func NewMemoryService(driver llm.Driver) *MemoryService { return &MemoryService{driver: driver} }

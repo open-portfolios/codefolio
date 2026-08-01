@@ -19,6 +19,7 @@ const (
 	TimelineError
 	TimelineTurnMeta
 	TimelineContextNotice
+	TimelineNotice
 )
 
 // TimelineItem is the CLI-only presentation model between Agent messages and
@@ -67,6 +68,8 @@ func projectTimeline(messages []*controller.Message) []TimelineItem {
 			}
 		case "context":
 			items = append(items, TimelineItem{Kind: TimelineContextNotice, MessageID: message.ID, Content: message.Content})
+		case "notice":
+			items = append(items, TimelineItem{Kind: TimelineNotice, MessageID: message.ID, Content: message.Content})
 		}
 	}
 	return items

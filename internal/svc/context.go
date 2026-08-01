@@ -28,6 +28,13 @@ type contextPreparation struct {
 	Events   []domain.ContextEvent
 }
 
+type CompactionResult struct {
+	Messages   []domain.ChatMessage
+	Metrics    domain.ContextMetrics
+	Detail     string
+	DidCompact bool
+}
+
 // ContextManager builds the bounded, provider-visible view of a session. It
 // never mutates the session ledger, which remains the source for the TUI and
 // future persistence.
@@ -59,23 +66,35 @@ func (m *ContextManager) Prepare(ctx context.Context, messages []domain.ChatMess
 		return preparation, nil
 	}
 
-	compacted, detail, err := m.compact(ctx, working, cfg)
+	result, err := m.Compact(ctx, working, schemas, cfg)
 	if err != nil {
 		return contextPreparation{}, err
 	}
-	if compacted == nil {
+	if !result.DidCompact {
 		if overContextLimit(metrics, contextHardLimitRatio) {
 			return contextPreparation{}, fmt.Errorf("context exceeds the hard limit and has no completed turn available for compaction")
 		}
 		return preparation, nil
 	}
-	metrics = contextMetrics(compacted, schemas, cfg)
+	metrics = result.Metrics
 	if overContextLimit(metrics, contextHardLimitRatio) {
 		return contextPreparation{}, fmt.Errorf("context still exceeds the hard limit after compaction")
 	}
-	preparation.Messages, preparation.Metrics = compacted, metrics
-	preparation.Events = append(preparation.Events, domain.ContextEvent{Metrics: metrics, Kind: domain.ContextCompacted, Detail: detail})
+	preparation.Messages, preparation.Metrics = result.Messages, metrics
+	preparation.Events = append(preparation.Events, domain.ContextEvent{Metrics: metrics, Kind: domain.ContextCompacted, Detail: result.Detail})
 	return preparation, nil
+}
+
+func (m *ContextManager) Compact(ctx context.Context, messages []domain.ChatMessage, schemas []map[string]any, cfg *conf.Struct) (CompactionResult, error) {
+	working, _ := previewToolOutputs(messages)
+	compacted, detail, err := m.compact(ctx, working, cfg)
+	if err != nil {
+		return CompactionResult{}, err
+	}
+	if compacted == nil {
+		return CompactionResult{Messages: working, Metrics: contextMetrics(working, schemas, cfg)}, nil
+	}
+	return CompactionResult{Messages: compacted, Metrics: contextMetrics(compacted, schemas, cfg), Detail: detail, DidCompact: true}, nil
 }
 
 func overContextLimit(metrics domain.ContextMetrics, ratio int64) bool {

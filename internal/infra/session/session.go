@@ -22,6 +22,7 @@ type Session struct {
 	createdAt time.Time
 	msgSeq    int
 	context   domain.ContextMetrics
+	provider  []domain.ChatMessage
 	logPath   string
 }
 
@@ -31,6 +32,13 @@ func New() domain.Session {
 		createdAt: time.Now(),
 	}
 }
+
+type Factory struct{}
+
+func NewFactory() *Factory             { return &Factory{} }
+func (f *Factory) New() domain.Session { return New() }
+
+var _ domain.SessionFactory = (*Factory)(nil)
 
 // Load rebuilds the latest message state from an append-only session JSONL
 // file. Repeated records for a message are checkpoints; the last valid record
@@ -48,7 +56,14 @@ func Load(path string) (domain.Session, error) {
 	scanner.Buffer(buffer, 2*1024*1024)
 	for scanner.Scan() {
 		var record logRecord
-		if err := json.Unmarshal(scanner.Bytes(), &record); err != nil || record.Version != 1 || record.Kind != "message" || record.Message.ID == "" {
+		if err := json.Unmarshal(scanner.Bytes(), &record); err != nil || record.Version != 1 {
+			continue
+		}
+		if record.Kind == "provider_context" {
+			value.provider = cloneMessages(record.Provider)
+			continue
+		}
+		if record.Kind != "message" || record.Message.ID == "" {
 			continue
 		}
 		if index, ok := byID[record.Message.ID]; ok {
@@ -90,6 +105,15 @@ func (s *Session) ConfigurePersistence(workDir string) {
 	}
 }
 
+func (s *Session) ID() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.logPath == "" {
+		return ""
+	}
+	return strings.TrimSuffix(filepath.Base(s.logPath), ".jsonl")
+}
+
 func (s *Session) AddSystemMessage(content string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -101,6 +125,9 @@ func (s *Session) AddSystemMessage(content string) {
 		Timestamp: time.Now(),
 	}
 	s.messages = append(s.messages, msg)
+	if len(s.provider) > 0 {
+		s.provider = append(s.provider, cloneMessage(msg))
+	}
 	s.persistLocked("message", msg)
 }
 
@@ -115,6 +142,9 @@ func (s *Session) AddUserMessage(content string) {
 		Timestamp: time.Now(),
 	}
 	s.messages = append(s.messages, msg)
+	if len(s.provider) > 0 {
+		s.provider = append(s.provider, cloneMessage(msg))
+	}
 	s.persistLocked("message", msg)
 }
 
@@ -130,6 +160,9 @@ func (s *Session) StartAssistantMessage() {
 		Streaming: true,
 	}
 	s.messages = append(s.messages, msg)
+	if len(s.provider) > 0 {
+		s.provider = append(s.provider, cloneMessage(msg))
+	}
 	s.persistLocked("message", msg)
 }
 
@@ -142,6 +175,12 @@ func (s *Session) AppendDelta(content string) {
 	last := &s.messages[len(s.messages)-1]
 	if last.Streaming {
 		last.Content += content
+		if len(s.provider) > 0 {
+			provider := &s.provider[len(s.provider)-1]
+			if provider.Streaming {
+				provider.Content += content
+			}
+		}
 	}
 }
 
@@ -154,6 +193,12 @@ func (s *Session) AppendThinkingDelta(content string) {
 	last := &s.messages[len(s.messages)-1]
 	if last.Streaming {
 		last.Thinking += content
+		if len(s.provider) > 0 {
+			provider := &s.provider[len(s.provider)-1]
+			if provider.Streaming {
+				provider.Thinking += content
+			}
+		}
 	}
 }
 
@@ -168,6 +213,12 @@ func (s *Session) FinishAssistantMessage() {
 		return
 	}
 	last.Streaming = false
+	if len(s.provider) > 0 {
+		provider := &s.provider[len(s.provider)-1]
+		if provider.ID == last.ID {
+			provider.Streaming = false
+		}
+	}
 	s.persistLocked("message", *last)
 }
 
@@ -179,6 +230,12 @@ func (s *Session) AddToolCallToAssistant(tc domain.ToolCall) {
 	}
 	last := &s.messages[len(s.messages)-1]
 	last.ToolCalls = append(last.ToolCalls, tc)
+	if len(s.provider) > 0 {
+		provider := &s.provider[len(s.provider)-1]
+		if provider.ID == last.ID {
+			provider.ToolCalls = append(provider.ToolCalls, tc)
+		}
+	}
 }
 
 func (s *Session) AddToolResultMessage(toolCallID string, content string, isError bool) {
@@ -194,6 +251,9 @@ func (s *Session) AddToolResultMessage(toolCallID string, content string, isErro
 		Timestamp:  time.Now(),
 	}
 	s.messages = append(s.messages, msg)
+	if len(s.provider) > 0 {
+		s.provider = append(s.provider, cloneMessage(msg))
+	}
 	s.persistLocked("message", msg)
 }
 
@@ -243,6 +303,22 @@ func (s *Session) Messages() []domain.ChatMessage {
 	return messages
 }
 
+func (s *Session) ProviderMessages() []domain.ChatMessage {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if len(s.provider) == 0 {
+		return cloneMessages(s.messages)
+	}
+	return cloneMessages(s.provider)
+}
+
+func (s *Session) ReplaceProviderMessages(messages []domain.ChatMessage) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.provider = cloneMessages(messages)
+	s.persistContextLocked()
+}
+
 func (s *Session) MessageCount() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -268,10 +344,27 @@ func (s *Session) Duration() time.Duration {
 }
 
 type logRecord struct {
-	Version   int                `json:"version"`
-	Kind      string             `json:"kind"`
-	Timestamp time.Time          `json:"timestamp"`
-	Message   domain.ChatMessage `json:"message"`
+	Version   int                  `json:"version"`
+	Kind      string               `json:"kind"`
+	Timestamp time.Time            `json:"timestamp"`
+	Message   domain.ChatMessage   `json:"message"`
+	Provider  []domain.ChatMessage `json:"provider,omitempty"`
+}
+
+func (s *Session) persistContextLocked() {
+	if s.logPath == "" {
+		return
+	}
+	record, err := json.Marshal(logRecord{Version: 1, Kind: "provider_context", Timestamp: time.Now(), Provider: s.provider})
+	if err != nil {
+		return
+	}
+	file, err := os.OpenFile(s.logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = file.Write(append(record, '\n'))
 }
 
 func (s *Session) persistLocked(kind string, message domain.ChatMessage) {
@@ -293,6 +386,14 @@ func (s *Session) persistLocked(kind string, message domain.ChatMessage) {
 func cloneMessage(message domain.ChatMessage) domain.ChatMessage {
 	message.ToolCalls = append([]domain.ToolCall(nil), message.ToolCalls...)
 	return message
+}
+
+func cloneMessages(messages []domain.ChatMessage) []domain.ChatMessage {
+	cloned := make([]domain.ChatMessage, len(messages))
+	for i := range messages {
+		cloned[i] = cloneMessage(messages[i])
+	}
+	return cloned
 }
 
 func userMsgID(seq int) string { return "u-" + itoa(seq) }

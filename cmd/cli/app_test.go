@@ -11,6 +11,17 @@ import (
 	"github.com/open-portfolios/codefolio/internal/svc"
 )
 
+func TestExitCommandUsesAttachedRuntimeStop(t *testing.T) {
+	for _, command := range []string{"exit", "quit"} {
+		called := false
+		root := &App{controller: &controller.Controller{}, quit: func() { called = true }}
+		root.executeLocal(command, "")
+		if !called {
+			t.Fatalf("/%s must stop the attached TUX runtime", command)
+		}
+	}
+}
+
 func TestEditorCtrlCClearsOnlyNonEmptyInput(t *testing.T) {
 	root := &App{editor: state.New(builtin.TextareaState{Value: "draft", Cursor: 5, PreferredColumn: -1}), controller: &controller.Controller{}}
 	ctrlC := input.KeyEvent{Rune: 'c', Modifiers: input.ModCtrl}

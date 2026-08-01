@@ -13,7 +13,7 @@ func NewShell(ctx renderer.Context, props ShellProps, children ...renderer.Compo
 }
 
 func (s *Shell) Render(ctx renderer.Context) *renderer.Element {
-	if len(s.children) != 5 {
+	if len(s.children) < 5 {
 		return builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "shell-content", Gap: 1}, s.children...)
 	}
 	width, _ := ctx.Size()
@@ -26,9 +26,13 @@ func (s *Shell) Render(ctx renderer.Context) *renderer.Element {
 		s.children[4],
 	)
 	if width > 120 {
-		return builtin.CreateRow(ctx, builtin.RowProps{Key: "session", Flex: 1}, main, s.children[1])
+		children := []renderer.Component{main, s.children[1]}
+		children = append(children, s.children[5:]...)
+		return builtin.CreateRow(ctx, builtin.RowProps{Key: "session", Flex: 1}, children...)
 	}
-	return main.Render(ctx)
+	children := []renderer.Component{main}
+	children = append(children, s.children[5:]...)
+	return builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "session", Flex: 1}, children...)
 }
 
 func horizontalInset(ctx renderer.Context, key string, child renderer.Component, flex bool) *renderer.Element {

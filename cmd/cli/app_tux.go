@@ -22,13 +22,14 @@ func (self *App) Render(ctx renderer.Context) *renderer.Element {
 			Context: self.controller.ContextMetrics(),
 		}),
 		p1.NewPrompt(ctx, p1.PromptProps{
-			State:    self.editor,
-			OnKey:    self.handleEditorKey,
-			Model:    self.controller.ModelName(),
-			Profile:  self.Profile(),
-			WorkDir:  self.workDir,
-			Disabled: self.ComposerDisabled(),
-			Focus:    self.FocusComposer(),
+			State:      self.editor,
+			OnKey:      self.handleEditorKey,
+			Model:      self.controller.ModelName(),
+			Profile:    self.Profile(),
+			WorkDir:    self.workDir,
+			Disabled:   self.ComposerDisabled(),
+			Focus:      self.FocusComposer(),
+			Completion: self.CommandCompletion(),
 		}),
 		p1.NewAskDialog(ctx, p1.AskDialogProps{
 			Open:       self.askOpen,
@@ -43,5 +44,13 @@ func (self *App) Render(ctx renderer.Context) *renderer.Element {
 			OnAllowOnce:    self.approveOnce,
 			OnAllowSession: self.approveSession,
 			OnDeny:         self.denyApproval,
+		}),
+		p1.NewResumeDialog(ctx, p1.ResumeDialogProps{
+			Open:      self.resumeOpen,
+			Sessions:  self.resumeSessions,
+			Selected:  self.resumeSelected,
+			OnMove:    self.moveResume,
+			OnConfirm: self.confirmResume,
+			OnCancel:  self.cancelResume,
 		})).Render(ctx)
 }

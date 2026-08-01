@@ -39,7 +39,7 @@ type Agent struct {
 	memoryService  *MemoryService
 }
 
-func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistry domain.ToolRegistry, promptService domain.PromptService, contextManager *ContextManager) *Agent {
+func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistry domain.ToolRegistry, promptService domain.PromptService, contextManager *ContextManager, memoryService *MemoryService) *Agent {
 	return &Agent{
 		MaxIterations:  defaultMaxIterations,
 		Mode:           ModePlan,
@@ -48,7 +48,7 @@ func NewAgent(driver llm.Driver, execFactory domain.ExecutorFactory, toolRegistr
 		toolRegistry:   toolRegistry,
 		promptService:  promptService,
 		contextManager: contextManager,
-		memoryService:  NewMemoryService(driver),
+		memoryService:  memoryService,
 	}
 }
 
@@ -70,7 +70,7 @@ func (a *Agent) Run(ctx context.Context, session domain.Session, cfg *conf.Struc
 			return fmt.Errorf("max agent iterations (%d) exceeded", maxIter)
 		}
 
-		requestMessages := session.Messages()
+		requestMessages := session.ProviderMessages()
 		query := ""
 		for i := len(requestMessages) - 1; i >= 0; i-- {
 			if requestMessages[i].Role == llm.RoleUser {

@@ -39,6 +39,32 @@ func TestSessionCopiesMessagesAndPersistsCheckpoints(t *testing.T) {
 	}
 }
 
+func TestSessionIDIsEmptyUntilFirstPersistence(t *testing.T) {
+	value := New().(*Session)
+	value.AddSystemMessage("bootstrap")
+	if got := value.ID(); got != "" {
+		t.Fatalf("unpersisted session ID = %q, want empty", got)
+	}
+
+	root := t.TempDir()
+	value.ConfigurePersistence(root)
+	if got := value.ID(); got == "" {
+		t.Fatal("persisted session ID must not be empty")
+	}
+
+	entries, err := os.ReadDir(filepath.Join(root, ".codefolio", "sessions"))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("expected one delayed session log, entries=%d err=%v", len(entries), err)
+	}
+	content, err := os.ReadFile(filepath.Join(root, ".codefolio", "sessions", entries[0].Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "bootstrap") {
+		t.Fatalf("delayed persistence omitted prior system prompt: %s", content)
+	}
+}
+
 func TestLoadRestoresLatestMessageCheckpoint(t *testing.T) {
 	value := New().(*Session)
 	root := t.TempDir()

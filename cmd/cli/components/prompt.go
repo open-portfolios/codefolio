@@ -9,26 +9,36 @@ import (
 )
 
 type PromptProps struct {
-	State    *state.State[builtin.TextareaState]
-	OnKey    func(input.KeyEvent) bool
-	Model    string
-	Profile  string
-	WorkDir  string
-	Disabled bool
-	Focus    bool
+	State      *state.State[builtin.TextareaState]
+	OnKey      func(input.KeyEvent) bool
+	Model      string
+	Profile    string
+	WorkDir    string
+	Disabled   bool
+	Focus      bool
+	Completion CommandCompletion
 }
+
+type CommandCompletion struct {
+	Open       bool
+	Candidates []CommandCandidate
+	Selected   int
+}
+
+type CommandCandidate struct{ Name, Description string }
 type Prompt struct {
-	state    *state.State[builtin.TextareaState]
-	onKey    func(input.KeyEvent) bool
-	model    string
-	profile  string
-	workDir  string
-	disabled bool
-	focus    bool
+	state      *state.State[builtin.TextareaState]
+	onKey      func(input.KeyEvent) bool
+	model      string
+	profile    string
+	workDir    string
+	disabled   bool
+	focus      bool
+	completion CommandCompletion
 }
 
 func NewPrompt(ctx renderer.Context, props PromptProps, children ...renderer.Component) *Prompt {
-	return &Prompt{state: props.State, onKey: props.OnKey, model: props.Model, profile: props.Profile, workDir: props.WorkDir, disabled: props.Disabled, focus: props.Focus}
+	return &Prompt{state: props.State, onKey: props.OnKey, model: props.Model, profile: props.Profile, workDir: props.WorkDir, disabled: props.Disabled, focus: props.Focus, completion: props.Completion}
 }
 
 func (p *Prompt) Render(ctx renderer.Context) *renderer.Element {
@@ -89,7 +99,30 @@ func (p *Prompt) Render(ctx renderer.Context) *renderer.Element {
 	)
 	separator := builtin.CreateText(ctx, builtin.TextProps{Key: "prompt-separator", Text: "", Bg: Theme.Background})
 	bottomSpace := builtin.CreateText(ctx, builtin.TextProps{Key: "prompt-bottom-space", Text: "", Bg: Theme.Background})
-	return builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "prompt"}, NewRail(ctx, RailProps{Disabled: p.disabled, Color: ProfileColor(p.profile)}, composer), separator, status, bottomSpace)
+	root := builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "prompt"}, NewRail(ctx, RailProps{Disabled: p.disabled, Color: ProfileColor(p.profile)}, composer), separator, status, bottomSpace)
+	if p.completion.Open {
+		root.SetChildren(append(root.Children(), p.completionPopup(ctx, width, inputHeight)))
+	}
+	return root
+}
+
+func (p *Prompt) completionPopup(ctx renderer.Context, width, inputHeight int) *renderer.Element {
+	_, height := ctx.Size()
+	popupHeight := len(p.completion.Candidates)
+	// Shell places Prompt at the terminal bottom: composer, separator, status,
+	// and one trailing spacer occupy inputHeight+7 rows in total.
+	y := height - (inputHeight + 7) - popupHeight
+	popupWidth := min(max(width-8, 28), 72)
+	items := make([]renderer.Component, 0, len(p.completion.Candidates))
+	for index, candidate := range p.completion.Candidates {
+		prefix, fg, bg := "  ", Theme.TextMuted, Theme.BackgroundPanel
+		if index == p.completion.Selected {
+			prefix, fg, bg = "> ", Theme.Primary, Theme.BackgroundElement
+		}
+		items = append(items, builtin.CreateText(ctx, builtin.TextProps{Key: "command-popup-" + candidate.Name, Text: prefix + "/" + candidate.Name + "  " + candidate.Description, Fg: fg, Bg: bg}))
+	}
+	content := builtin.CreateColumn(ctx, builtin.ColumnProps{Key: "command-popup-content", Bg: Theme.BackgroundPanel}, items...)
+	return builtin.CreatePopup(ctx, builtin.PopupProps{Key: "command-popup", X: 3, Y: y, Width: popupWidth, Height: popupHeight, Bg: Theme.BackgroundPanel}, content)
 }
 
 func placeholder(disabled bool) string {

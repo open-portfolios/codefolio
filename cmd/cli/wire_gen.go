@@ -31,14 +31,19 @@ func InitApp(cfg *conf.Struct, askUserCh chan askuser.Request, approvalCh chan *
 	registry := tools.NewRegistry(askUserCh)
 	promptService := prompt.NewPromptService()
 	contextManager := svc.NewContextManager(driver)
-	agent := svc.NewAgent(driver, executorFactory, registry, promptService, contextManager)
+	memoryService := svc.NewMemoryService(driver)
+	agent := svc.NewAgent(driver, executorFactory, registry, promptService, contextManager, memoryService)
 	domainSession := session.New()
 	environmentService := infra.NewEnvironmentService()
 	manager, cleanup, err := mcp.NewManager(cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	app := NewApp(cfg, agent, domainSession, promptService, environmentService, manager, registry, askUserCh, approvalCh)
+	commandRegistry := svc.NewCommandRegistry()
+	store := session.NewStore()
+	factory := session.NewFactory()
+	sessionService := svc.NewSessionService(store, factory)
+	app := NewApp(cfg, agent, domainSession, promptService, environmentService, manager, registry, commandRegistry, sessionService, contextManager, memoryService, askUserCh, approvalCh)
 	return app, func() {
 		cleanup()
 	}, nil

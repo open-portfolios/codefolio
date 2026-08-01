@@ -196,6 +196,8 @@ func (t *Transcript) lines(width int) []visualLine {
 			lines = append(lines, visualLine{text: "   ▣  " + strings.ToUpper(item.Content[:1]) + item.Content[1:], fg: Theme.Error, messageID: item.MessageID})
 		case TimelineContextNotice:
 			lines = append(lines, wrap("   ◌  "+item.Content, width, Theme.TextMuted, style.Italic, "", item.MessageID, "")...)
+		case TimelineNotice:
+			lines = append(lines, wrap("   ◌  "+item.Content, width, Theme.TextMuted, style.Italic, "", item.MessageID, "")...)
 		}
 		if index < len(items)-1 && groupFor(item) != groupFor(items[index+1]) {
 			lines = append(lines, visualLine{})

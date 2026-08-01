@@ -3,14 +3,16 @@
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Sidebar" />
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Prompt" />
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="AskDialog" />
-	<import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="ApprovalDialog" />
+    <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="ApprovalDialog" />
+	<import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="ResumeDialog" />
     <import package="github.com/open-portfolios/codefolio/cmd/cli/components" component="Shell" />
 
     <Shell>
         <Transcript messages="{self.controller.Messages()}" viewport="${viewport}" frame="{self.spinner.Get(ctx)}" onToggleThinking="{self.controller.ToggleThinking}" onToggleTool="{self.controller.ToggleTool}" />
 		<Sidebar workDir="${workDir}" mcp="{self.MCPStatus(ctx)}" context="{self.controller.ContextMetrics()}" />
-        <Prompt state="${editor}" onKey="${handleEditorKey}" model="{self.controller.ModelName()}" profile="{self.Profile()}" workDir="${workDir}" disabled="{self.ComposerDisabled()}" focus="{self.FocusComposer()}" />
+		<Prompt state="${editor}" onKey="${handleEditorKey}" model="{self.controller.ModelName()}" profile="{self.Profile()}" workDir="${workDir}" disabled="{self.ComposerDisabled()}" focus="{self.FocusComposer()}" completion="{self.CommandCompletion()}" />
         <AskDialog open="${askOpen}" ask="{self.controller.Ask()}" onMove="${moveAsk}" onConfirm="${confirmAsk}" onDefaults="${respondDefaults}" />
 		<ApprovalDialog open="${approvalOpen}" approval="{self.controller.Approval()}" onAllowOnce="${approveOnce}" onAllowSession="${approveSession}" onDeny="${denyApproval}" />
+		<ResumeDialog open="${resumeOpen}" sessions="{self.resumeSessions}" selected="{self.resumeSelected}" onMove="${moveResume}" onConfirm="${confirmResume}" onCancel="${cancelResume}" />
     </Shell>
 </component>

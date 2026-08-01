@@ -86,6 +86,11 @@ type Controller struct {
 	approval        ApprovalState
 }
 
+type Submission struct {
+	Display string
+	Prompt  string
+}
+
 func New(cfg *conf.Struct, agent *svc.Agent, session domain.Session, askUserCh chan askuser.Request, approvalCh chan *approval.Request) *Controller {
 	return &Controller{cfg: cfg, agent: agent, session: session, askUserCh: askUserCh, approvalCh: approvalCh, historyAt: -1}
 }
@@ -148,11 +153,19 @@ func (c *Controller) Tick() {
 }
 
 func (c *Controller) Start(content string, editor *builtin.TextareaState) {
+	c.StartSubmission(Submission{Display: content, Prompt: content}, editor)
+}
+
+func (c *Controller) StartSubmission(submission Submission, editor *builtin.TextareaState) {
+	content := submission.Prompt
+	if submission.Display == "" {
+		submission.Display = content
+	}
 	c.history = append(c.history, content)
 	c.historyAt, c.draft = len(c.history), ""
 	c.session.AddUserMessage(content)
 	c.session.StartAssistantMessage()
-	c.messages = append(c.messages, &Message{ID: fmt.Sprintf("user-%d", len(c.messages)+1), Role: "user", Profile: c.Profile(), Content: content})
+	c.messages = append(c.messages, &Message{ID: fmt.Sprintf("user-%d", len(c.messages)+1), Role: "user", Profile: c.Profile(), Content: submission.Display})
 	c.messages = append(c.messages, &Message{ID: fmt.Sprintf("assistant-%d", len(c.messages)+1), Role: "assistant", Streaming: true})
 	c.streaming, c.cancelling = StreamRunning, false
 	c.runID++
@@ -178,6 +191,33 @@ func (c *Controller) Start(content string, editor *builtin.TextareaState) {
 			_ = visitor.post(func() { c.applyError(runID, err) })
 		}
 	}()
+	c.invalidate()
+}
+
+func (c *Controller) AddNotice(content string) {
+	if content == "" {
+		return
+	}
+	c.messages = append(c.messages, &Message{ID: fmt.Sprintf("notice-%d", len(c.messages)+1), Role: "notice", Content: content})
+	c.invalidate()
+}
+
+func (c *Controller) ReplaceSession(session domain.Session, messages []*Message) {
+	if c.Running() || session == nil {
+		return
+	}
+	c.session = session
+	c.messages = messages
+	c.history, c.historyAt, c.draft = nil, -1, ""
+	c.inputTokens, c.outputTokens, c.contextMetrics = 0, 0, session.ContextUsage()
+	c.invalidate()
+}
+
+func (c *Controller) Session() domain.Session { return c.session }
+
+func (c *Controller) SetContextMetrics(metrics domain.ContextMetrics) {
+	c.contextMetrics = metrics
+	c.session.SetContextMetrics(metrics)
 	c.invalidate()
 }
 
